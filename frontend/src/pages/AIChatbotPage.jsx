@@ -114,14 +114,17 @@ const AIChatbotPage = () => {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         try {
                             const { latitude, longitude } = position.coords;
-                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=en`);
+                            
+                            // Using BigDataCloud Client Reverse Geocoding API 
+                            // This natively guarantees English names (localityLanguage=en) without needing any manual fallbacks.
+                            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                             const geoData = await res.json();
                             
-                            // Extract possible district/city
-                            let detectedDistrict = geoData.address.state_district || geoData.address.county || geoData.address.city || geoData.address.town || 'Hyderabad';
+                            // Extract exact city or locality natively in English
+                            let detectedDistrict = geoData.city || geoData.locality || 'Hyderabad';
                             
-                            // Remove "District" suffix if present
-                            detectedDistrict = detectedDistrict.replace(/ District/g, '').trim();
+                            // Just clean up "District" word if it appears
+                            detectedDistrict = detectedDistrict.replace(/ District/gi, '').trim();
                             
                             handleDistrictDetected(detectedDistrict, data.specialization, data.message);
                         } catch (err) {
