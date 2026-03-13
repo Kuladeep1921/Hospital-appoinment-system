@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChatbotSuggestion, fetchDoctors, fetchDistricts } from '../services/api';
+import { getChatbotSuggestion, fetchDoctors, fetchDistricts, fetchHospitals } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import Spinner from '../components/Spinner';
 
@@ -37,10 +37,26 @@ const AIChatbotPage = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, loading]);
 
-    const fetchAndShowDoctors = async (districtName, specialization, analysisMsg) => {
+    const fetchAndShowDoctors = async (districtName, specialization, analysisMsg, lat = null, lon = null) => {
         setLoading(true);
         try {
-            const { data } = await fetchDoctors({ district: districtName, specialization });
+            // Concurrent fetch of database doctors and live OSM hospitals
+            const fetchPromises = [fetchDoctors({ district: districtName, specialization })];
+            
+            // If we have coordinates, pull real-time live map data
+            if (lat && lon) {
+                fetchPromises.push(
+                    fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${lat},${lon})[amenity=hospital];out;`).then(r => r.json())
+                );
+            }
+
+            const results = await Promise.all(fetchPromises);
+            const data = results[0].data || [];
+            const liveHospData = results[1]?.elements || [];
+            const liveHospitals = liveHospData
+                .map(e => e.tags.name)
+                .filter(name => name && name.length > 2)
+                .slice(0, 5);
             
             setTimeout(() => {
                 setMessages(prev => [...prev, { 
@@ -48,15 +64,28 @@ const AIChatbotPage = () => {
                     text: `Based on your symptoms, I detected that you might need a ${specialization}. ${analysisMsg}`,
                 }]);
 
-                if (data.length === 0) {
+                if (data.length === 0 && liveHospitals.length === 0) {
                     setMessages(prev => [...prev, { 
                         role: 'bot', 
-                        text: `I couldn't find any ${specialization}s in ${districtName} right now. I recommend checking a nearby district.` 
+                        text: `I couldn't find any registered ${specialization}s or live hospitals near you in ${districtName} right now.` 
                     }]);
                 } else {
+                    let listText = `Search Results for ${districtName}:`;
+                    
+                    if (liveHospitals.length > 0) {
+                        const topHosp = Array.from(new Set(liveHospitals)).join(", ");
+                        listText += `\n\n🏥 Real-Time Nearby Hospitals (Live): ${topHosp}.`;
+                    }
+
+                    if (data.length > 0) {
+                        listText += `\n\n👨‍⚕️ Registered Doctors Available for Booking:`;
+                    } else if (liveHospitals.length > 0) {
+                        listText += `\n\n(No specific ${specialization}s are registered in our booking system for this area yet, but you can visit the live hospitals listed above.)`;
+                    }
+
                     setMessages(prev => [...prev, { 
                         role: 'bot', 
-                        text: `Recommended Doctors Near You (${districtName}):`,
+                        text: listText,
                         type: 'doctor-list',
                         doctors: data,
                         selectedDistrict: districtName
@@ -83,9 +112,9 @@ const AIChatbotPage = () => {
         setLoading(false);
     };
 
-    const handleDistrictDetected = (districtName, specialization, analysisMsg, locationString = districtName) => {
+    const handleDistrictDetected = (districtName, specialization, analysisMsg, locationString = districtName, lat = null, lon = null) => {
         setMessages(prev => [...prev, { role: 'bot', text: `📍 Location detected: ${locationString}` }]);
-        fetchAndShowDoctors(districtName, specialization, analysisMsg);
+        fetchAndShowDoctors(districtName, specialization, analysisMsg, lat, lon);
     };
 
     const handleSendSymptoms = async (e) => {
@@ -137,7 +166,7 @@ const AIChatbotPage = () => {
                                 ? `${detectedArea}, ${detectedCity}` 
                                 : detectedCity;
                             
-                            handleDistrictDetected(detectedCity, data.specialization, data.message, locationString);
+                            handleDistrictDetected(detectedCity, data.specialization, data.message, locationString, latitude, longitude);
                         } catch (err) {
                             handleLocationFailed();
                         }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChatbotSuggestion, fetchDoctors } from '../services/api';
+import { getChatbotSuggestion, fetchDoctors, fetchHospitals } from '../services/api';
 
 const Chatbot = () => {
     const [isOpen, setIsOpen] = useState(() => {
@@ -58,10 +58,10 @@ const Chatbot = () => {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         try {
                             const { latitude, longitude } = position.coords;
+                            // 1. Fetch Location String
                             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=en`);
                             const geoData = await res.json();
                             
-                            // Nominatim provides explicit granular local data
                             let detectedArea = '';
                             let detectedCity = '';
 
@@ -79,17 +79,31 @@ const Chatbot = () => {
                             
                             setMessages(prev => [...prev, { text: `📍 Location detected: ${locationString}`, sender: 'bot' }]);
                             
-                            // Fetch doctors
-                            const docsRes = await fetchDoctors({ district: detectedCity, specialization: data.specialization });
+                            // 2. Fetch Real-Time Data (Database + Live OpenStreetMap)
+                            const [docsRes, liveHospRes] = await Promise.all([
+                                fetchDoctors({ district: detectedCity, specialization: data.specialization }),
+                                fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${latitude},${longitude})[amenity=hospital];out;`).then(r => r.json())
+                            ]);
+                            
                             const doctors = docsRes.data || [];
+                            const liveHospitals = liveHospRes.elements
+                                .map(e => e.tags.name)
+                                .filter(name => name && name.length > 2)
+                                .slice(0, 5); // Just top 5 real ones
                             
                             let botText = `Based on your symptoms, I detected that you might need a ${data.specialization}. ${data.message}`;
                             
-                            if (doctors.length === 0) {
-                                botText += `\nI couldn't find any ${data.specialization}s in ${detectedDistrict} right now.`;
+                            if (doctors.length === 0 && liveHospitals.length === 0) {
+                                botText += `\n\nI couldn't find any ${data.specialization}s or live hospitals near your location right now.`;
                             } else {
-                                const docNames = doctors.map(d => d.name).join(", ");
-                                botText += `\nRecommended doctors near you: ${docNames}.`;
+                                if (doctors.length > 0) {
+                                    const docNames = doctors.map(d => d.name).join(", ");
+                                    botText += `\n\n👨‍⚕️ Registered Doctors: ${docNames}.`;
+                                }
+                                if (liveHospitals.length > 0) {
+                                    const hospNames = Array.from(new Set(liveHospitals)).join(", ");
+                                    botText += `\n\n🏥 Real-Time Nearby Hospitals (Live): ${hospNames}.`;
+                                }
                                 
                                 // Save to localStorage for BookAppointment page auto-fill
                                 localStorage.setItem("suggestedDoctors", JSON.stringify({
