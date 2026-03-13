@@ -5,6 +5,26 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// ── Startup diagnostics (visible in Render logs) ──────────────────────────────
+console.log('🔍 ENV check:');
+console.log('   NODE_ENV   :', process.env.NODE_ENV   || '(not set)');
+console.log('   PORT       :', process.env.PORT       || '(not set)');
+console.log('   MONGO_URI  :', process.env.MONGO_URI  ? '✅ present' : '❌ MISSING');
+console.log('   JWT_SECRET :', process.env.JWT_SECRET ? '✅ present' : '❌ MISSING');
+console.log('   FRONTEND_URL:', process.env.FRONTEND_URL || '(not set, using localhost fallback)');
+
+if (!process.env.MONGO_URI) {
+    console.error('❌ FATAL: MONGO_URI environment variable is not set.');
+    console.error('   → Add it in the Render Dashboard → Environment tab.');
+    process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+    console.error('❌ FATAL: JWT_SECRET environment variable is not set.');
+    console.error('   → Add it in the Render Dashboard → Environment tab.');
+    process.exit(1);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const authRoutes = require('./routes/authRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
@@ -48,7 +68,7 @@ app.get('/', (req, res) => {
 // Connect to MongoDB and start server
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
-
+const JWT_SECRET = process.env.JWT_SECRET;
 mongoose
     .connect(MONGO_URI)
     .then(async () => {
