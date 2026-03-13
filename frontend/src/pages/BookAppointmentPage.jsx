@@ -122,6 +122,28 @@ const BookAppointmentPage = () => {
 
         setLoadingHospitals(true);
         try {
+            // Start concurrent fetch: Database + Live Overpass scan if we have GPS
+            const fetchPromises = [fetchHospitals(districtName)];
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        const res = await fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${latitude},${longitude})[amenity=hospital];out;`);
+                        const overpassData = await res.json();
+                        const live = overpassData.elements
+                            .filter(e => e.tags.name)
+                            .map(e => ({
+                                _id: `live-${e.id}`,
+                                name: `🌐 ${e.tags.name} (Live GPS Match)`,
+                                isLive: true
+                            }));
+                        
+                        setHospitals(current => [...current, ...live]);
+                    } catch (err) { console.warn("Live scan failed", err); }
+                });
+            }
+
             const { data } = await fetchHospitals(districtName);
             setHospitals(data);
         } catch {
@@ -133,15 +155,25 @@ const BookAppointmentPage = () => {
 
     // 3. Hospital Change Handler
     const handleHospitalChange = async (e) => {
-        const hospitalId = e.target.value;
-        setForm(prev => ({ ...prev, hospitalId, doctorId: '', specialization: '' }));
+        const selectedId = e.target.value;
+        
+        // Handle Live Hospital Selection
+        if (selectedId.startsWith('live-')) {
+            setForm(prev => ({ ...prev, hospitalId: selectedId, doctorId: '', specialization: '' }));
+            setError('This is a live-detected facility. Currently, we only support online booking for our registered partner hospitals. Please visit this hospital in-person.');
+            setDoctors([]);
+            return;
+        }
+
+        setError(''); // Clear previous error
+        setForm(prev => ({ ...prev, hospitalId: selectedId, doctorId: '', specialization: '' }));
         setDoctors([]);
 
-        if (!hospitalId) return;
+        if (!selectedId) return;
 
         setLoadingDoctors(true);
         try {
-            const { data } = await fetchDoctors({ hospitalId });
+            const { data } = await fetchDoctors({ hospitalId: selectedId });
             
             // If there's a suggestion, highlight or filter
             if (suggestion) {
