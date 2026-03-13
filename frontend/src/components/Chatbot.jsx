@@ -58,16 +58,24 @@ const Chatbot = () => {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         try {
                             const { latitude, longitude } = position.coords;
-                            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=en`);
                             const geoData = await res.json();
                             
-                            let detectedArea = geoData.locality || '';
-                            let detectedCity = geoData.city || 'Hyderabad';
+                            // Nominatim provides explicit granular local data
+                            let detectedArea = '';
+                            let detectedCity = '';
+
+                            if (geoData.address) {
+                                detectedArea = geoData.address.neighbourhood || geoData.address.suburb || geoData.address.residential || '';
+                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Unknown Location';
+                            }
                             
                             detectedCity = detectedCity.replace(/ District/gi, '').trim();
                             detectedArea = detectedArea.replace(/ District/gi, '').trim();
                             
-                            let locationString = detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity;
+                            let locationString = (detectedArea && detectedArea.toLowerCase() !== detectedCity.toLowerCase()) 
+                                ? `${detectedArea}, ${detectedCity}` 
+                                : detectedCity;
                             
                             setMessages(prev => [...prev, { text: `📍 Location detected: ${locationString}`, sender: 'bot' }]);
                             

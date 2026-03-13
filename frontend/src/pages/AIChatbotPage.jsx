@@ -115,20 +115,27 @@ const AIChatbotPage = () => {
                         try {
                             const { latitude, longitude } = position.coords;
                             
-                            // Using BigDataCloud Client Reverse Geocoding API 
-                            // This natively guarantees English names (localityLanguage=en) without needing any manual fallbacks.
-                            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=en`);
                             const geoData = await res.json();
                             
-                            // Extract area/locality and city natively in English
-                            let detectedArea = geoData.locality || '';
-                            let detectedCity = geoData.city || 'Hyderabad';
+                            let detectedArea = '';
+                            let detectedCity = '';
+
+                            if (geoData.address) {
+                                // Extract very granular area details
+                                detectedArea = geoData.address.neighbourhood || geoData.address.suburb || geoData.address.residential || geoData.address.village || '';
+                                
+                                // Extract higher order city/district boundary
+                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Unknown Location';
+                            }
                             
-                            // Just clean up "District" word if it appears
+                            // Just clean up "District" word if it appears from the boundary
                             detectedCity = detectedCity.replace(/ District/gi, '').trim();
                             detectedArea = detectedArea.replace(/ District/gi, '').trim();
                             
-                            let locationString = detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity;
+                            let locationString = (detectedArea && detectedArea.toLowerCase() !== detectedCity.toLowerCase()) 
+                                ? `${detectedArea}, ${detectedCity}` 
+                                : detectedCity;
                             
                             handleDistrictDetected(detectedCity, data.specialization, data.message, locationString);
                         } catch (err) {
