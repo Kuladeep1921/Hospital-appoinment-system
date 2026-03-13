@@ -53,13 +53,18 @@ const Chatbot = () => {
                             const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                             const geoData = await res.json();
                             
-                            let detectedDistrict = geoData.city || geoData.locality || 'Hyderabad';
-                            detectedDistrict = detectedDistrict.replace(/ District/gi, '').trim();
+                            let detectedArea = geoData.locality || '';
+                            let detectedCity = geoData.city || 'Hyderabad';
                             
-                            setMessages(prev => [...prev, { text: `📍 Location detected: ${detectedDistrict}`, sender: 'bot' }]);
+                            detectedCity = detectedCity.replace(/ District/gi, '').trim();
+                            detectedArea = detectedArea.replace(/ District/gi, '').trim();
+                            
+                            let locationString = detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity;
+                            
+                            setMessages(prev => [...prev, { text: `📍 Location detected: ${locationString}`, sender: 'bot' }]);
                             
                             // Fetch doctors
-                            const docsRes = await fetchDoctors({ district: detectedDistrict, specialization: data.specialization });
+                            const docsRes = await fetchDoctors({ district: detectedCity, specialization: data.specialization });
                             const doctors = docsRes.data || [];
                             
                             let botText = `Based on your symptoms, I detected that you might need a ${data.specialization}. ${data.message}`;

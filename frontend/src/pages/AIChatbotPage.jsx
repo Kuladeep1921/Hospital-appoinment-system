@@ -83,8 +83,8 @@ const AIChatbotPage = () => {
         setLoading(false);
     };
 
-    const handleDistrictDetected = (districtName, specialization, analysisMsg) => {
-        setMessages(prev => [...prev, { role: 'bot', text: `📍 Location detected: ${districtName}` }]);
+    const handleDistrictDetected = (districtName, specialization, analysisMsg, locationString = districtName) => {
+        setMessages(prev => [...prev, { role: 'bot', text: `📍 Location detected: ${locationString}` }]);
         fetchAndShowDoctors(districtName, specialization, analysisMsg);
     };
 
@@ -120,13 +120,17 @@ const AIChatbotPage = () => {
                             const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                             const geoData = await res.json();
                             
-                            // Extract exact city or locality natively in English
-                            let detectedDistrict = geoData.city || geoData.locality || 'Hyderabad';
+                            // Extract area/locality and city natively in English
+                            let detectedArea = geoData.locality || '';
+                            let detectedCity = geoData.city || 'Hyderabad';
                             
                             // Just clean up "District" word if it appears
-                            detectedDistrict = detectedDistrict.replace(/ District/gi, '').trim();
+                            detectedCity = detectedCity.replace(/ District/gi, '').trim();
+                            detectedArea = detectedArea.replace(/ District/gi, '').trim();
                             
-                            handleDistrictDetected(detectedDistrict, data.specialization, data.message);
+                            let locationString = detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity;
+                            
+                            handleDistrictDetected(detectedCity, data.specialization, data.message, locationString);
                         } catch (err) {
                             handleLocationFailed();
                         }
