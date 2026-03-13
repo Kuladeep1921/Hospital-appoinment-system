@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChatbotSuggestion } from '../services/api';
+import { getChatbotSuggestion, fetchDoctors } from '../services/api';
 
 const Chatbot = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -23,9 +23,17 @@ const Chatbot = () => {
         }
     }, [messages, isOpen]);
 
+    const handleLocationFailed = (data) => {
+        setMessages(prev => [
+            ...prev,
+            { text: "Location access denied. Please navigate to the full AI Chatbot page to select your district manually.", sender: 'bot' }
+        ]);
+        setLoading(false);
+    };
+
     const handleSend = async (e) => {
         e.preventDefault();
-        if (!input.trim()) return;
+        if (!input.trim() || loading) return;
 
         const userMsg = { text: input, sender: 'user' };
         setMessages(prev => [...prev, userMsg]);
@@ -35,31 +43,56 @@ const Chatbot = () => {
         try {
             const { data } = await getChatbotSuggestion(userMsg.text);
 
-            let botText = data.message;
-            if (data.doctors && data.doctors.length > 0) {
-                const docNames = data.doctors.map(d => d.name).join(", ");
-                botText += ` Available doctors: ${docNames}.`;
-            }
+            setTimeout(() => {
+                setMessages(prev => [...prev, { text: "To suggest nearby doctors and hospitals, please allow location access.", sender: 'bot' }]);
+                
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (position) => {
+                        try {
+                            const { latitude, longitude } = position.coords;
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                            const geoData = await res.json();
+                            
+                            let detectedDistrict = geoData.address.state_district || geoData.address.county || geoData.address.city || geoData.address.town || 'Hyderabad';
+                            detectedDistrict = detectedDistrict.replace(/ District/g, '');
+                            
+                            setMessages(prev => [...prev, { text: `📍 Location detected: ${detectedDistrict}`, sender: 'bot' }]);
+                            
+                            // Fetch doctors
+                            const docsRes = await fetchDoctors({ district: detectedDistrict, specialization: data.specialization });
+                            const doctors = docsRes.data || [];
+                            
+                            let botText = `Based on your symptoms, I detected that you might need a ${data.specialization}. ${data.message}`;
+                            
+                            if (doctors.length === 0) {
+                                botText += `\nI couldn't find any ${data.specialization}s in ${detectedDistrict} right now.`;
+                            } else {
+                                const docNames = doctors.map(d => d.name).join(", ");
+                                botText += `\nRecommended doctors near you: ${docNames}.`;
+                                
+                                // Save to localStorage for BookAppointment page auto-fill
+                                localStorage.setItem("suggestedDoctors", JSON.stringify({
+                                    specialization: data.specialization,
+                                    doctors: doctors
+                                }));
+                            }
+                            
+                            setMessages(prev => [...prev, { text: botText, sender: 'bot', specialization: data.specialization }]);
+                            setLoading(false);
+                            
+                        } catch (err) {
+                            handleLocationFailed(data);
+                        }
+                    }, (err) => {
+                        handleLocationFailed(data);
+                    }, { timeout: 10000 });
+                } else {
+                    handleLocationFailed(data);
+                }
+            }, 800);
 
-            const botMsg = {
-                text: botText,
-                sender: 'bot',
-                doctors: data.doctors,
-                specialization: data.specialization
-            };
-
-            // Save suggested doctors to localStorage for BookAppointment page
-            if (data.specialization && data.doctors && data.doctors.length > 0) {
-                localStorage.setItem("suggestedDoctors", JSON.stringify({
-                    specialization: data.specialization,
-                    doctors: data.doctors
-                }));
-            }
-
-            setMessages(prev => [...prev, botMsg]);
         } catch (error) {
             setMessages(prev => [...prev, { text: "Sorry, I'm having trouble connecting right now.", sender: 'bot' }]);
-        } finally {
             setLoading(false);
         }
     };

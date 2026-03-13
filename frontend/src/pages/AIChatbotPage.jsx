@@ -37,6 +37,57 @@ const AIChatbotPage = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, loading]);
 
+    const fetchAndShowDoctors = async (districtName, specialization, analysisMsg) => {
+        setLoading(true);
+        try {
+            const { data } = await fetchDoctors({ district: districtName, specialization });
+            
+            setTimeout(() => {
+                setMessages(prev => [...prev, { 
+                    role: 'bot', 
+                    text: `Based on your symptoms, I detected that you might need a ${specialization}. ${analysisMsg}`,
+                }]);
+
+                if (data.length === 0) {
+                    setMessages(prev => [...prev, { 
+                        role: 'bot', 
+                        text: `I couldn't find any ${specialization}s in ${districtName} right now. I recommend checking a nearby district.` 
+                    }]);
+                } else {
+                    setMessages(prev => [...prev, { 
+                        role: 'bot', 
+                        text: `Recommended Doctors Near You (${districtName}):`,
+                        type: 'doctor-list',
+                        doctors: data,
+                        selectedDistrict: districtName
+                    }]);
+                }
+                setStep('symptoms');
+                setLoading(false);
+            }, 1000);
+
+        } catch (err) {
+            setMessages(prev => [...prev, { role: 'bot', text: 'Failed to fetch doctors. Please try again.' }]);
+            setLoading(false);
+            setStep('symptoms');
+        }
+    };
+
+    const handleLocationFailed = () => {
+        setMessages(prev => [...prev, { 
+            role: 'bot', 
+            text: 'Location access denied or failed. Please select your district manually from the options below.',
+            type: 'district-select'
+        }]);
+        setStep('district');
+        setLoading(false);
+    };
+
+    const handleDistrictDetected = (districtName, specialization, analysisMsg) => {
+        setMessages(prev => [...prev, { role: 'bot', text: `📍 Location detected: ${districtName}` }]);
+        fetchAndShowDoctors(districtName, specialization, analysisMsg);
+    };
+
     const handleSendSymptoms = async (e) => {
         e.preventDefault();
         if (!input.trim() || loading || step !== 'symptoms') return;
@@ -53,15 +104,35 @@ const AIChatbotPage = () => {
             setMatchedSpecialization(data.specialization);
             setAnalysisMessage(data.message);
             
-            // Bot asks for district FIRST (as per strict instruction)
             setTimeout(() => {
                 setMessages(prev => [...prev, { 
                     role: 'bot', 
-                    text: 'To recommend doctors near you, please select your district.',
-                    type: 'district-select'
+                    text: 'To suggest nearby doctors and hospitals, please allow location access.',
                 }]);
-                setStep('district');
-                setLoading(false);
+                
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (position) => {
+                        try {
+                            const { latitude, longitude } = position.coords;
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                            const geoData = await res.json();
+                            
+                            // Extract possible district/city
+                            let detectedDistrict = geoData.address.state_district || geoData.address.county || geoData.address.city || geoData.address.town || 'Hyderabad';
+                            
+                            // Remove "District" suffix if present
+                            detectedDistrict = detectedDistrict.replace(/ District/g, '');
+                            
+                            handleDistrictDetected(detectedDistrict, data.specialization, data.message);
+                        } catch (err) {
+                            handleLocationFailed();
+                        }
+                    }, (err) => {
+                        handleLocationFailed();
+                    }, { timeout: 10000 });
+                } else {
+                    handleLocationFailed();
+                }
             }, 800);
 
         } catch (error) {
@@ -72,41 +143,7 @@ const AIChatbotPage = () => {
 
     const handleDistrictSelect = async (districtName) => {
         setMessages(prev => [...prev, { role: 'user', text: `My district is ${districtName}` }]);
-        setLoading(true);
-
-        try {
-            // Fetch doctors based on district and specialization
-            const { data } = await fetchDoctors({ district: districtName, specialization: matchedSpecialization });
-            
-            setTimeout(() => {
-                // Now show the analysis result AND the doctors
-                setMessages(prev => [...prev, { 
-                    role: 'bot', 
-                    text: `Based on your symptoms, I detected that you might need a ${matchedSpecialization}. ${analysisMessage}`,
-                }]);
-
-                if (data.length === 0) {
-                    setMessages(prev => [...prev, { 
-                        role: 'bot', 
-                        text: `I couldn't find any ${matchedSpecialization}s in ${districtName} right now. I recommend checking a nearby district.` 
-                    }]);
-                } else {
-                    setMessages(prev => [...prev, { 
-                        role: 'bot', 
-                        text: `Recommended ${matchedSpecialization}s in ${districtName}:`,
-                        type: 'doctor-list',
-                        doctors: data,
-                        selectedDistrict: districtName
-                    }]);
-                }
-                setStep('symptoms'); // Reset flow for next query
-                setLoading(false);
-            }, 1000);
-
-        } catch (err) {
-            setMessages(prev => [...prev, { role: 'bot', text: 'Failed to fetch doctors. Please try again.' }]);
-            setLoading(false);
-        }
+        fetchAndShowDoctors(districtName, matchedSpecialization, analysisMessage);
     };
 
     const handleBookNow = (doctor) => {
