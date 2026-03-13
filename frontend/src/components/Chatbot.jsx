@@ -50,11 +50,11 @@ const Chatbot = () => {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         try {
                             const { latitude, longitude } = position.coords;
-                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=en`);
                             const geoData = await res.json();
                             
                             let detectedDistrict = geoData.address.state_district || geoData.address.county || geoData.address.city || geoData.address.town || 'Hyderabad';
-                            detectedDistrict = detectedDistrict.replace(/ District/g, '');
+                            detectedDistrict = detectedDistrict.replace(/ District/g, '').trim();
                             
                             setMessages(prev => [...prev, { text: `📍 Location detected: ${detectedDistrict}`, sender: 'bot' }]);
                             
