@@ -43,28 +43,32 @@ const BookAppointmentPage = () => {
                 setDistricts(data);
                 
                 // Check if we have pre-selected data from navigation (AI Assistant)
-                if (location.state?.preSelectedDoctorId) {
+                if (location.state?.preSelectedDoctorId || location.state?.preSelectedDistrict) {
                     const { preSelectedDoctorId, preSelectedHospitalId, preSelectedDistrict, preSelectedSpecialization, preFilledProblem } = location.state;
                     
                     setForm(prev => ({
                         ...prev,
-                        district: preSelectedDistrict,
-                        hospitalId: preSelectedHospitalId,
-                        doctorId: preSelectedDoctorId,
-                        specialization: preSelectedSpecialization,
+                        district: preSelectedDistrict || '',
+                        hospitalId: preSelectedHospitalId || '',
+                        doctorId: preSelectedDoctorId || '',
+                        specialization: preSelectedSpecialization || '',
                         problem: preFilledProblem || ''
                     }));
 
-                    // Load secondary data
-                    setLoadingHospitals(true);
-                    const hRes = await fetchHospitals(preSelectedDistrict);
-                    setHospitals(hRes.data);
-                    setLoadingHospitals(false);
+                    // Load secondary data incrementally based on what we have
+                    if (preSelectedDistrict) {
+                        setLoadingHospitals(true);
+                        const hRes = await fetchHospitals(preSelectedDistrict);
+                        setHospitals(hRes.data);
+                        setLoadingHospitals(false);
+                    }
 
-                    setLoadingDoctors(true);
-                    const dRes = await fetchDoctors({ hospitalId: preSelectedHospitalId });
-                    setDoctors(dRes.data);
-                    setLoadingDoctors(false);
+                    if (preSelectedHospitalId) {
+                        setLoadingDoctors(true);
+                        const dRes = await fetchDoctors({ hospitalId: preSelectedHospitalId });
+                        setDoctors(dRes.data);
+                        setLoadingDoctors(false);
+                    }
 
                 } else {
                     // Normal flow: Geolocation

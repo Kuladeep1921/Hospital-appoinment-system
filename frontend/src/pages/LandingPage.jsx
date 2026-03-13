@@ -4,236 +4,257 @@ import Footer from '../components/Footer';
 
 const features = [
     {
-        icon: '🩺',
-        title: 'Expert Doctors',
-        desc: 'Connect with certified specialists across every medical field. Quality care is just a click away.',
-        color: 'bg-blue-50 border-blue-100',
-        iconBg: 'bg-blue-100',
+        icon: '👨‍⚕️',
+        title: 'Elite Specialists',
+        desc: 'Access a curated network of top-tier medical experts. Precision care is now just a tap away.',
+        color: 'from-blue-500/10 to-transparent border-blue-500/20',
+        iconBg: 'bg-blue-500/10 text-blue-500',
     },
     {
-        icon: '📅',
-        title: 'Easy Scheduling',
-        desc: 'Book your appointment in minutes. Choose your preferred doctor, date and time — hassle free.',
-        color: 'bg-primary-50 border-primary-100',
-        iconBg: 'bg-primary-100',
+        icon: '⚡',
+        title: 'Instant Booking',
+        desc: 'Experience our ultra-fast scheduling. Book, reschedule, and manage appointments with zero friction.',
+        color: 'from-primary-500/10 to-transparent border-primary-500/20',
+        iconBg: 'bg-primary-500/10 text-primary-500',
     },
     {
-        icon: '🔒',
-        title: 'Secure & Private',
-        desc: 'Your health data is protected with industry-standard encryption and privacy controls.',
-        color: 'bg-purple-50 border-purple-100',
-        iconBg: 'bg-purple-100',
+        icon: '🛡️',
+        title: 'Bank-Grade Security',
+        desc: 'Your health records are shielded by enterprise-level encryption. Total privacy, absolute peace of mind.',
+        color: 'from-purple-500/10 to-transparent border-purple-500/20',
+        iconBg: 'bg-purple-500/10 text-purple-500',
     },
 ];
 
 const stats = [
-    { value: '500+', label: 'Expert Doctors' },
-    { value: '10k+', label: 'Happy Patients' },
-    { value: '20+', label: 'Specializations' },
-    { value: '24/7', label: 'Support' },
+    { value: '500+', label: 'Elite Doctors' },
+    { value: '10k+', label: 'Active Patients' },
+    { value: '25+', label: 'Specializations' },
+    { value: '24/7', label: 'AI Support' },
 ];
 
 const specializations = [
-    { name: 'Cardiology', icon: '❤️' },
-    { name: 'Dermatology', icon: '✨' },
-    { name: 'Neurology', icon: '🧠' },
-    { name: 'Orthopedics', icon: '🦴' },
-    { name: 'Gynecology', icon: '🌸' },
-    { name: 'Pediatrics', icon: '👶' },
-    { name: 'Ophthalmology', icon: '👁️' },
-    { name: 'General', icon: '🏥' },
+    { name: 'Cardiology', icon: '🫀', desc: 'Heart & Blood' },
+    { name: 'Dermatology', icon: '✨', desc: 'Skin & Hair' },
+    { name: 'Neurology', icon: '🧠', desc: 'Brain & Nerves' },
+    { name: 'Orthopedics', icon: '🦴', desc: 'Bones & Joints' },
+    { name: 'Gynecology', icon: '🌸', desc: 'Women Health' },
+    { name: 'Pediatrics', icon: '👶', desc: 'Child Care' },
+    { name: 'Ophthalmology', icon: '👁️', desc: 'Eye Care' },
+    { name: 'Physician', icon: '🩺', desc: 'General Med' },
 ];
 
 const LandingPage = () => {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-[#0B0F19] text-gray-200 overflow-hidden font-sans">
             <Navbar />
 
-            {/* Hero Section */}
-            <section className="bg-gradient-to-br from-primary-50 via-white to-blue-50 pt-16 pb-24 px-4">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                        {/* Left */}
-                        <div>
-                            <div className="inline-flex items-center gap-2 bg-primary-100 text-primary-700 text-sm font-semibold px-4 py-2 rounded-full mb-6">
-                                <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" />
-                                Trusted Medical Booking Platform
-                            </div>
-                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
-                                Your Health,{' '}
-                                <span className="text-primary-500">Our Priority</span>
-                            </h1>
-                            <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-lg">
-                                Book appointments with top-rated doctors effortlessly.
-                                Get the care you deserve, when you need it — from the comfort of your home.
-                            </p>
-                            <div className="flex flex-wrap gap-4">
-                                <Link to="/register" className="btn-primary text-base px-8 py-3 shadow-lg shadow-primary-200">
-                                    Get Started Free →
-                                </Link>
-                                <Link to="/login" className="btn-outline text-base px-8 py-3">
-                                    Sign In
-                                </Link>
-                                <Link to="/login" className="flex items-center text-sm font-semibold text-gray-500 hover:text-primary-600 transition-colors ml-4 underline decoration-gray-300 underline-offset-4">
-                                    Admin Portal
-                                </Link>
-                            </div>
+            {/* Glowing Orbs Background */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-600/20 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[20%] right-[-10%] w-[30%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
 
-                            {/* Trust badges */}
-                            <div className="flex items-center gap-6 mt-10">
-                                <div className="flex -space-x-2">
-                                    {['A', 'B', 'C', 'D'].map((l, i) => (
-                                        <div key={i} className={`w-9 h-9 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white shadow-sm ${['bg-primary-400', 'bg-blue-400', 'bg-purple-400', 'bg-pink-400'][i]}`}>
-                                            {l}
-                                        </div>
-                                    ))}
+            {/* Hero Section */}
+            <section className="relative pt-24 pb-32 px-4 z-10">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                    
+                    {/* Left Typography */}
+                    <div className="relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 backdrop-blur-md px-5 py-2.5 rounded-full mb-8 shadow-xl">
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary-500"></span>
+                            </span>
+                            <span className="text-sm font-semibold tracking-wide text-gray-300">Next-Gen Healthcare Platform</span>
+                        </div>
+                        
+                        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8 tracking-tight">
+                            Healthcare at the <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 via-emerald-400 to-blue-500 drop-shadow-sm">
+                                Speed of Life.
+                            </span>
+                        </h1>
+                        
+                        <p className="text-xl text-gray-400 mb-10 leading-relaxed max-w-xl font-light">
+                            Skip the waiting room. Connect instantly with top-rated medical specialists, book appointments effortlessly, and take control of your health journey.
+                        </p>
+                        
+                        <div className="flex flex-wrap items-center gap-5">
+                            <Link to="/register" className="relative group inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-300 bg-primary-600 rounded-2xl hover:bg-primary-500 hover:shadow-[0_0_40px_rgba(34,197,94,0.4)] hover:-translate-y-1 active:scale-95">
+                                Start Your Journey
+                                <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                            </Link>
+                            
+                            <Link to="/login" className="inline-flex items-center justify-center px-8 py-4 font-bold text-gray-300 transition-all duration-300 border-2 border-white/10 rounded-2xl hover:bg-white/5 hover:text-white hover:border-white/20 active:scale-95">
+                                Member Sign In
+                            </Link>
+                        </div>
+
+                        {/* Social Proof */}
+                        <div className="flex items-center gap-6 mt-14 pt-8 border-t border-white/10">
+                            <div className="flex -space-x-3">
+                                {[
+                                    'https://i.pravatar.cc/100?img=1',
+                                    'https://i.pravatar.cc/100?img=2',
+                                    'https://i.pravatar.cc/100?img=3',
+                                    'https://i.pravatar.cc/100?img=4'
+                                ].map((img, i) => (
+                                    <img key={i} src={img} className="w-12 h-12 rounded-full border-2 border-[#0B0F19] object-cover shadow-lg" alt="User" />
+                                ))}
+                            </div>
+                            <div>
+                                <div className="flex text-yellow-500 text-lg mb-1">
+                                    ★★★★★
                                 </div>
+                                <p className="text-sm font-medium text-gray-400">Trusted by <span className="text-white font-bold">10,000+</span> patients</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Interactive Mockup */}
+                    <div className="hidden lg:flex justify-end relative">
+                        {/* Main Glass Card */}
+                        <div className="relative z-20 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 w-[24rem] shadow-2xl animate-in fade-in slide-in-from-right-8 duration-1000 delay-200">
+                            
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-primary-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                                        <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Booking Confirmed</h3>
+                                        <p className="text-sm text-emerald-400 font-medium">Ready for your visit</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-[#0B0F19]/50 rounded-3xl p-6 border border-white/5 mb-6 space-y-5">
+                                <div className="flex items-center gap-4">
+                                    <img src="https://i.pravatar.cc/150?img=32" alt="Dr" className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
+                                    <div>
+                                        <h4 className="text-white font-bold text-lg">Dr. Aisha Khan</h4>
+                                        <p className="text-sm text-primary-400 font-medium">Cardiology Specialist</p>
+                                    </div>
+                                </div>
+                                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                                <div className="flex justify-between items-center">
+                                    <p className="text-sm text-gray-400">Date & Time</p>
+                                    <p className="text-sm font-bold text-white bg-white/10 px-3 py-1.5 rounded-lg">Tomorrow, 10:00 AM</p>
+                                </div>
+                            </div>
+                            
+                            <div className="w-full bg-gradient-to-r from-primary-600/20 to-emerald-600/20 text-emerald-300 text-center py-4 rounded-2xl border border-emerald-500/20 font-mono text-sm tracking-widest font-bold">
+                                #APT-2024-001
+                            </div>
+                        </div>
+
+                        {/* Floating Badges */}
+                        <div className="absolute top-10 -left-12 z-30 bg-[#0B0F19]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl animate-bounce [animation-duration:4s]">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center text-xl">👨‍⚕️</div>
                                 <div>
-                                    <div className="flex text-yellow-400 text-sm">★★★★★</div>
-                                    <p className="text-xs text-gray-500 mt-0.5">10,000+ satisfied patients</p>
+                                    <p className="text-white font-bold">500+</p>
+                                    <p className="text-xs text-gray-400 font-medium">Total Specialists</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Right – Decorative Card */}
-                        <div className="hidden lg:flex justify-center">
-                            <div className="relative">
-                                {/* Main card */}
-                                <div className="bg-white rounded-3xl shadow-2xl p-8 w-80 border border-gray-100">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="w-12 h-12 bg-primary-500 rounded-2xl flex items-center justify-center shadow-md">
-                                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-800">Appointment Booked!</p>
-                                            <p className="text-xs text-gray-500">Confirmed ✓</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {[
-                                            { label: 'Doctor', value: 'Dr. Aisha Khan' },
-                                            { label: 'Specialization', value: 'Cardiologist' },
-                                            { label: 'Date', value: 'Tomorrow, 10:00 AM' },
-                                            { label: 'Status', value: '✅ Approved' },
-                                        ].map(({ label, value }) => (
-                                            <div key={label} className="flex justify-between items-center py-2 border-b border-gray-50">
-                                                <span className="text-xs text-gray-400 font-medium">{label}</span>
-                                                <span className="text-xs font-semibold text-gray-700">{value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="mt-4 bg-primary-50 rounded-xl p-3 text-center">
-                                        <p className="text-xs text-primary-600 font-medium">Appointment ID: #APT-2024-001</p>
-                                    </div>
-                                </div>
-
-                                {/* Floating badge top-right */}
-                                <div className="absolute -top-4 -right-4 bg-white rounded-2xl shadow-lg p-3 border border-gray-100">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xl">👨‍⚕️</span>
-                                        <div>
-                                            <p className="text-xs font-bold text-gray-800">500+</p>
-                                            <p className="text-xs text-gray-500">Doctors</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Floating badge bottom-left */}
-                                <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-lg p-3 border border-gray-100">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xl">⭐</span>
-                                        <div>
-                                            <p className="text-xs font-bold text-gray-800">4.9 / 5</p>
-                                            <p className="text-xs text-gray-500">Rating</p>
-                                        </div>
-                                    </div>
+                        <div className="absolute -bottom-8 right-8 z-30 bg-[#0B0F19]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl animate-bounce [animation-duration:5s] [animation-delay:1s]">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-yellow-500/20 rounded-xl flex items-center justify-center text-xl">⭐</div>
+                                <div>
+                                    <p className="text-white font-bold">4.9 / 5</p>
+                                    <p className="text-xs text-gray-400 font-medium">Average Rating</p>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                 </div>
             </section>
 
             {/* Stats Bar */}
-            <section className="bg-primary-500 py-10 px-4">
-                <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+            <section className="relative z-10 border-y border-white/5 bg-white/[0.02]">
+                <div className="max-w-7xl mx-auto py-12 px-4 grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-white/5">
                     {stats.map(({ value, label }) => (
-                        <div key={label} className="text-center">
-                            <p className="text-3xl font-bold text-white">{value}</p>
-                            <p className="text-primary-100 text-sm mt-1">{label}</p>
+                        <div key={label} className="text-center group">
+                            <p className="text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-2 group-hover:scale-110 transition-transform">{value}</p>
+                            <p className="text-primary-500 font-semibold tracking-wide uppercase text-xs">{label}</p>
                         </div>
                     ))}
                 </div>
             </section>
 
-            {/* Features Section */}
-            <section className="py-20 px-4 bg-white">
+            {/* Features section */}
+            <section className="py-32 px-4 relative z-10">
                 <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-14">
-                        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                            Why Choose <span className="text-primary-500">MediBook</span>?
+                    <div className="text-center mb-20">
+                        <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+                            Intelligent Healthcare. <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-400 to-gray-600">Engineered for You.</span>
                         </h2>
-                        <p className="text-gray-500 max-w-xl mx-auto text-lg">
-                            Everything you need for seamless healthcare — all in one place.
-                        </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {features.map(({ icon, title, desc, color, iconBg }) => (
-                            <div
-                                key={title}
-                                className={`card border ${color} hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group`}
-                            >
-                                <div className={`w-14 h-14 ${iconBg} rounded-2xl flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                            <div key={title} className={`bg-gradient-to-br ${color} bg-opacity-10 backdrop-blur-lg border rounded-[2rem] p-8 hover:-translate-y-2 transition-all duration-300 group`}>
+                                <div className={`w-16 h-16 ${iconBg} rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform`}>
                                     {icon}
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
-                                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
+                                <h3 className="text-2xl font-bold text-white mb-4">{title}</h3>
+                                <p className="text-gray-400 leading-relaxed font-light">{desc}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* Specializations */}
-            <section className="py-20 px-4 bg-gray-50">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                            Our <span className="text-primary-500">Specializations</span>
-                        </h2>
-                        <p className="text-gray-500">Expert doctors across all major medical fields</p>
+            {/* Specializations Grid */}
+            <section className="py-32 px-4 bg-[#080B13] relative border-t border-white/5">
+                {/* Decorative gradients */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-600/10 rounded-full blur-[150px] pointer-events-none" />
+                
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+                        <div>
+                            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Mastering Every <br /><span className="text-primary-500">Discipline.</span></h2>
+                            <p className="text-gray-400 text-lg max-w-md font-light">Comprehensive care covering every aspect of human health, backed by industry leaders.</p>
+                        </div>
+                        <Link to="/register" className="text-primary-400 hover:text-primary-300 font-bold flex items-center gap-2 group">
+                            View all specialists <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        </Link>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {specializations.map(({ name, icon }) => (
-                            <div
-                                key={name}
-                                className="bg-white rounded-2xl p-5 text-center shadow-sm border border-gray-100 hover:shadow-md hover:border-primary-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                            >
-                                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">{icon}</div>
-                                <p className="text-sm font-semibold text-gray-700">{name}</p>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        {specializations.map(({ name, icon, desc }) => (
+                            <div key={name} className="bg-white/5 border border-white/10 hover:border-primary-500/50 hover:bg-white/10 rounded-3xl p-6 transition-all duration-300 cursor-pointer group hover:shadow-[0_0_30px_rgba(34,197,94,0.1)]">
+                                <div className="text-4xl mb-6 group-hover:scale-110 origin-left transition-transform duration-300">{icon}</div>
+                                <h3 className="text-xl font-bold text-white mb-1 group-hover:text-primary-400 transition-colors">{name}</h3>
+                                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">{desc}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="py-20 px-4 bg-gradient-to-r from-primary-500 to-primary-600">
-                <div className="max-w-4xl mx-auto text-center">
-                    <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                        Ready to Book Your Appointment?
+            {/* CTA */}
+            <section className="relative py-24 px-4 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-600 to-emerald-600 opacity-90" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay" />
+                
+                <div className="relative z-10 max-w-4xl mx-auto text-center">
+                    <h2 className="text-4xl sm:text-6xl font-black text-white mb-6 tracking-tight">
+                        Don't Compromise on Care.
                     </h2>
-                    <p className="text-primary-100 text-lg mb-8 max-w-xl mx-auto">
-                        Join thousands of patients who trust MediBook for their healthcare needs.
+                    <p className="text-primary-100 text-xl mb-10 max-w-2xl mx-auto font-light">
+                        Join the platform redefining medical access. Secure your health's future within 60 seconds.
                     </p>
                     <Link
                         to="/register"
-                        className="inline-block bg-white text-primary-600 font-bold px-10 py-4 rounded-xl shadow-lg hover:shadow-xl hover:bg-primary-50 transition-all duration-200 active:scale-95"
+                        className="inline-flex items-center justify-center bg-white text-primary-700 font-black px-12 py-5 rounded-2xl shadow-2xl hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:bg-gray-50 transition-all duration-300 active:scale-95 text-lg"
                     >
-                        Start for Free Today →
+                        Create Free Account
                     </Link>
                 </div>
             </section>

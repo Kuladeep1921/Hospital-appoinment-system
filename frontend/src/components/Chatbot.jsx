@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { getChatbotSuggestion, fetchDoctors } from '../services/api';
 
 const Chatbot = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([
-        { text: "Hello! I'm your Medical Assistant. How are you feeling today?", sender: 'bot' }
-    ]);
+    const [isOpen, setIsOpen] = useState(() => {
+        return sessionStorage.getItem('chatbot_isOpen') === 'true';
+    });
+    const [messages, setMessages] = useState(() => {
+        const saved = sessionStorage.getItem('chatbot_messages');
+        return saved ? JSON.parse(saved) : [
+            { text: "Hello! I'm your Medical Assistant. How are you feeling today?", sender: 'bot' }
+        ];
+    });
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -21,6 +26,9 @@ const Chatbot = () => {
         if (isOpen) {
             scrollToBottom();
         }
+        // Save to session storage so chat isn't lost on navigation
+        sessionStorage.setItem('chatbot_messages', JSON.stringify(messages));
+        sessionStorage.setItem('chatbot_isOpen', isOpen);
     }, [messages, isOpen]);
 
     const handleLocationFailed = (data) => {
@@ -82,7 +90,7 @@ const Chatbot = () => {
                                 }));
                             }
                             
-                            setMessages(prev => [...prev, { text: botText, sender: 'bot', specialization: data.specialization }]);
+                            setMessages(prev => [...prev, { text: botText, sender: 'bot', specialization: data.specialization, district: detectedCity }]);
                             setLoading(false);
                             
                         } catch (err) {
@@ -149,7 +157,12 @@ const Chatbot = () => {
                                     {msg.sender === 'bot' && msg.specialization && (
                                         <div className="mt-3 pt-3 border-t border-gray-100">
                                             <button
-                                                onClick={() => navigate('/dashboard/book')}
+                                                onClick={() => navigate('/dashboard/book', { 
+                                                    state: { 
+                                                        preSelectedDistrict: msg.district, 
+                                                        preSelectedSpecialization: msg.specialization 
+                                                    } 
+                                                })}
                                                 className="w-full bg-primary-100/50 hover:bg-primary-100 text-primary-700 font-bold py-2 rounded-xl text-xs transition-colors border border-primary-200/50"
                                             >
                                                 📅 Book Appointment
