@@ -58,7 +58,7 @@ const symptomMap = [
 
 const suggestDoctor = async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, age, gender } = req.body;
 
         if (!message) {
             return res.status(400).json({ message: 'Please describe your symptoms' });
@@ -67,11 +67,23 @@ const suggestDoctor = async (req, res) => {
         const input = message.toLowerCase();
         let found = null;
 
-        // Simple keyword matching
-        for (const item of symptomMap) {
-            if (item.keywords.some(keyword => input.includes(keyword))) {
-                found = item;
-                break;
+        // Demographic Logic First (e.g., Pregnancy-related for females)
+        if (gender === 'Female' && (input.includes('pregnancy') || input.includes('pregnant') || input.includes('period') || input.includes('menstrual') || input.includes('maternity'))) {
+            found = symptomMap.find(s => s.specialization === 'Gynecologist');
+        } 
+        
+        // Pediatric logic for children
+        if (!found && age <= 14 && (input.includes('fever') || input.includes('cold') || input.includes('cough') || input.includes('growth'))) {
+            found = symptomMap.find(s => s.specialization === 'Pediatrician');
+        }
+
+        // Generic keyword matching if no demographic match
+        if (!found) {
+            for (const item of symptomMap) {
+                if (item.keywords.some(keyword => input.includes(keyword))) {
+                    found = item;
+                    break;
+                }
             }
         }
 

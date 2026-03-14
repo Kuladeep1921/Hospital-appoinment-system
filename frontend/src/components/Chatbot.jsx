@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChatbotSuggestion, fetchDoctors, fetchHospitals } from '../services/api';
+import { getChatbotSuggestion, fetchDoctors, fetchHospitals, bookAppointment } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Chatbot = () => {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(() => {
         return sessionStorage.getItem('chatbot_isOpen') === 'true';
     });
@@ -14,6 +16,11 @@ const Chatbot = () => {
     });
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
+    
+    // Booking State
+    const [bookingState, setBookingState] = useState(null); // { doctor, step: 'date-time' | 'confirm' }
+    const [selectedDate, setSelectedDate] = useState('');
+    const [selectedTime, setSelectedTime] = useState('');
 
     const messagesEndRef = useRef(null);
     const navigate = useNavigate();
@@ -26,22 +33,26 @@ const Chatbot = () => {
         if (isOpen) {
             scrollToBottom();
         }
-        // Save to session storage so chat isn't lost on navigation
         sessionStorage.setItem('chatbot_messages', JSON.stringify(messages));
         sessionStorage.setItem('chatbot_isOpen', isOpen);
     }, [messages, isOpen]);
 
+    const generateTimeSlots = () => {
+        return ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM", "03:00 PM", "04:00 PM"];
+    };
+
     const handleLocationFailed = (data) => {
         setMessages(prev => [
             ...prev,
-            { text: "Location access denied. Please navigate to the full AI Chatbot page to select your district manually.", sender: 'bot' }
+            { text: "Location access denied. I'll search for doctors in your registered district.", sender: 'bot' }
         ]);
+        // Fallback or request manual district? For now just try to use user info if available
         setLoading(false);
     };
 
     const handleSend = async (e) => {
         e.preventDefault();
-        if (!input.trim() || loading) return;
+        if (!input.trim() || loading || bookingState) return;
 
         const userMsg = { text: input, sender: 'user' };
         setMessages(prev => [...prev, userMsg]);
@@ -49,70 +60,55 @@ const Chatbot = () => {
         setLoading(true);
 
         try {
-            const { data } = await getChatbotSuggestion(userMsg.text);
+            // Include age and gender in suggestion request
+            const { data } = await getChatbotSuggestion(userMsg.text, user?.age, user?.gender);
 
             setTimeout(() => {
-                setMessages(prev => [...prev, { text: "To suggest nearby doctors and hospitals, please allow location access.", sender: 'bot' }]);
+                setMessages(prev => [...prev, { text: "Detecting your location to find nearby hospitals and doctors...", sender: 'bot' }]);
                 
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         try {
                             const { latitude, longitude } = position.coords;
-                            // 1. Fetch Location String
                             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=en`);
                             const geoData = await res.json();
                             
-                            let detectedArea = '';
-                            let detectedCity = '';
+                            let detectedCity = 'Hyderabad'; // Default fallback
 
                             if (geoData.address) {
-                                detectedArea = geoData.address.neighbourhood || geoData.address.suburb || geoData.address.residential || '';
-                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Unknown Location';
+                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Hyderabad';
                             }
                             
                             detectedCity = detectedCity.replace(/ District/gi, '').trim();
-                            detectedArea = detectedArea.replace(/ District/gi, '').trim();
                             
-                            let locationString = (detectedArea && detectedArea.toLowerCase() !== detectedCity.toLowerCase()) 
-                                ? `${detectedArea}, ${detectedCity}` 
-                                : detectedCity;
+                            setMessages(prev => [...prev, { text: `📍 Location detected: ${detectedCity}. Finding best ${data.specialization}s for you...`, sender: 'bot' }]);
                             
-                            setMessages(prev => [...prev, { text: `📍 Location detected: ${locationString}`, sender: 'bot' }]);
-                            
-                            // 2. Fetch Real-Time Data (Database + Live OpenStreetMap)
-                            const [docsRes, liveHospRes] = await Promise.all([
+                            // 2. Fetch Doctors & Hospitals from Database
+                            const [docsRes, hospRes] = await Promise.all([
                                 fetchDoctors({ district: detectedCity, specialization: data.specialization }),
-                                fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${latitude},${longitude})[amenity=hospital];out;`).then(r => r.json())
+                                fetchHospitals(detectedCity)
                             ]);
                             
                             const doctors = docsRes.data || [];
-                            const liveHospitals = liveHospRes.elements
-                                .map(e => e.tags.name)
-                                .filter(name => name && name.length > 2)
-                                .slice(0, 5); // Just top 5 real ones
+                            const dbHospitals = hospRes.data || [];
                             
-                            let botText = `Based on your symptoms, I detected that you might need a ${data.specialization}. ${data.message}`;
+                            let botText = `Based on your symptoms and profile, I found some ${data.specialization}s in your area.`;
                             
-                            if (doctors.length === 0 && liveHospitals.length === 0) {
-                                botText += `\n\nI couldn't find any ${data.specialization}s or live hospitals near your location right now.`;
-                            } else {
-                                if (doctors.length > 0) {
-                                    const docNames = doctors.map(d => d.name).join(", ");
-                                    botText += `\n\n👨‍⚕️ Registered Doctors: ${docNames}.`;
-                                }
-                                if (liveHospitals.length > 0) {
-                                    const hospNames = Array.from(new Set(liveHospitals)).join(", ");
-                                    botText += `\n\n🏥 Real-Time Nearby Hospitals (Live): ${hospNames}.`;
-                                }
-                                
-                                // Save to localStorage for BookAppointment page auto-fill
-                                localStorage.setItem("suggestedDoctors", JSON.stringify({
-                                    specialization: data.specialization,
-                                    doctors: doctors
-                                }));
+                            if (dbHospitals.length > 0) {
+                                const hospitalList = dbHospitals.map(h => h.name).slice(0, 3).join(", ");
+                                botText += `\n\n🏥 Nearby Hospitals found: ${hospitalList}.`;
                             }
-                            
-                            setMessages(prev => [...prev, { text: botText, sender: 'bot', specialization: data.specialization, district: detectedCity }]);
+
+                            if (doctors.length === 0) {
+                                botText += `\n\nI couldn't find any specific ${data.specialization} doctors registered in ${detectedCity} at the moment.`;
+                                setMessages(prev => [...prev, { text: botText, sender: 'bot' }]);
+                            } else {
+                                setMessages(prev => [...prev, { 
+                                    text: botText, 
+                                    sender: 'bot',
+                                    doctors: doctors.slice(0, 3) 
+                                }]);
+                            }
                             setLoading(false);
                             
                         } catch (err) {
@@ -128,6 +124,36 @@ const Chatbot = () => {
 
         } catch (error) {
             setMessages(prev => [...prev, { text: "Sorry, I'm having trouble connecting right now.", sender: 'bot' }]);
+            setLoading(false);
+        }
+    };
+
+    const initiationBooking = (doctor) => {
+        setBookingState({ doctor, step: 'date-time' });
+    };
+
+    const handleBooking = async () => {
+        if (!selectedDate || !selectedTime) return;
+        
+        setLoading(true);
+        try {
+            await bookAppointment({
+                doctorId: bookingState.doctor._id,
+                date: selectedDate,
+                timeSlot: selectedTime,
+                problem: messages[messages.length - 2]?.text || "Consultation from Chatbot"
+            });
+
+            setMessages(prev => [...prev, { 
+                text: `✅ Appointment confirmed for ${bookingState.doctor.name} on ${selectedDate} at ${selectedTime}.`, 
+                sender: 'bot' 
+            }]);
+            setBookingState(null);
+            setSelectedDate('');
+            setSelectedTime('');
+        } catch (error) {
+            setMessages(prev => [...prev, { text: "Failed to book appointment. Please try again.", sender: 'bot' }]);
+        } finally {
             setLoading(false);
         }
     };
@@ -153,53 +179,141 @@ const Chatbot = () => {
 
             {/* Chat Window */}
             {isOpen && (
-                <div className="absolute bottom-20 right-0 w-[90vw] sm:w-[380px] h-[500px] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in fade-in slide-in-from-bottom-10">
+                <div className="absolute bottom-20 right-0 w-[95vw] sm:w-[420px] h-[600px] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in fade-in slide-in-from-bottom-10">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-primary-600 to-indigo-600 p-4 text-white">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl backdrop-blur-sm">🤖</div>
-                            <div>
-                                <p className="font-bold">Medical AI Assistant</p>
-                                <p className="text-[10px] text-white/80 uppercase tracking-widest font-bold">Online • Ready to help</p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl backdrop-blur-sm shadow-inner">🤖</div>
+                                <div>
+                                    <p className="font-bold text-lg leading-tight uppercase tracking-tight">MediBook AI</p>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
+                                        <p className="text-[10px] text-white/80 font-medium uppercase tracking-widest">Always Active</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="text-[10px] bg-white/10 px-2 py-1 rounded-full backdrop-blur-md font-medium">V2.5 Premium</div>
+                                <button 
+                                    onClick={() => setIsOpen(false)}
+                                    className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                                    title="Close"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F8FAFC]">
                         {messages.map((msg, i) => (
-                            <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[80%] p-3.5 rounded-2xl text-sm shadow-sm transition-all ${msg.sender === 'user'
+                            <div key={i} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm transition-all ${msg.sender === 'user'
                                     ? 'bg-primary-600 text-white rounded-tr-none'
-                                    : 'bg-white text-gray-700 rounded-tl-none border border-gray-100'
+                                    : 'bg-white text-gray-700 rounded-tl-none border border-gray-200'
                                     }`}>
                                     {msg.text}
-
-                                    {/* Action Button for Doctor Recommendation */}
-                                    {msg.sender === 'bot' && msg.specialization && (
-                                        <div className="mt-3 pt-3 border-t border-gray-100">
-                                            <button
-                                                onClick={() => navigate('/dashboard/book', { 
-                                                    state: { 
-                                                        preSelectedDistrict: msg.district, 
-                                                        preSelectedSpecialization: msg.specialization 
-                                                    } 
-                                                })}
-                                                className="w-full bg-primary-100/50 hover:bg-primary-100 text-primary-700 font-bold py-2 rounded-xl text-xs transition-colors border border-primary-200/50"
-                                            >
-                                                📅 Book Appointment
-                                            </button>
+                                    
+                                    {/* Doctor Suggestions */}
+                                    {msg.doctors && (
+                                        <div className="mt-4 space-y-3">
+                                            {msg.doctors.map((doc, idx) => (
+                                                <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-200 hover:border-primary-300 transition-colors shadow-sm">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <p className="font-bold text-primary-900">{doc.name}</p>
+                                                            <p className="text-[10px] text-primary-600 font-semibold uppercase">{doc.specialization}</p>
+                                                        </div>
+                                                        <div className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                                            {doc.experience}+ Years Exp
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[11px] text-gray-500 flex items-center gap-1 mb-3">
+                                                        🏥 {doc.hospitalId?.name || 'Local Clinic'}
+                                                    </p>
+                                                    <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-100">
+                                                        <span className="text-[10px] text-gray-400 font-medium uppercase">Starts From</span>
+                                                        <span className="text-xs font-bold text-gray-700">₹{doc.consultationFee || 500}</span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => initiationBooking(doc)}
+                                                        className="w-full mt-3 bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                                                    >
+                                                        📅 Book Now
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
+                                <span className="text-[9px] text-gray-400 mt-1 mx-1 uppercase tracking-tighter">
+                                    {msg.sender === 'bot' ? 'Assistant' : 'You'} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                             </div>
                         ))}
-                        {loading && (
+
+                        {/* Booking Overlay/Inline Form */}
+                        {bookingState && (
+                            <div className="bg-white border-2 border-primary-500 p-5 rounded-2xl shadow-xl animate-in zoom-in-95 duration-200">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                        <span className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm">📅</span>
+                                        Finalize Booking
+                                    </h3>
+                                    <button onClick={() => setBookingState(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                                </div>
+                                <p className="text-xs text-gray-500 mb-4 px-1 italic">Selecting for Dr. {bookingState.doctor.name}</p>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Select Date</label>
+                                        <input 
+                                            type="date" 
+                                            min={new Date().toISOString().split('T')[0]}
+                                            className="w-full mt-1 bg-gray-50 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 transition-all font-medium"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Available slots</label>
+                                        <div className="grid grid-cols-3 gap-2 mt-1">
+                                            {generateTimeSlots().map(slot => (
+                                                <button 
+                                                    key={slot}
+                                                    onClick={() => setSelectedTime(slot)}
+                                                    className={`py-2 text-[10px] rounded-lg font-bold border transition-all ${
+                                                        selectedTime === slot 
+                                                        ? 'bg-primary-600 border-primary-600 text-white shadow-md scale-95' 
+                                                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary-200 hover:bg-primary-50'
+                                                    }`}
+                                                >
+                                                    {slot}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={handleBooking}
+                                        disabled={!selectedDate || !selectedTime || loading}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        {loading ? 'Processing...' : 'Confirm OP Appointment'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {loading && !bookingState && (
                             <div className="flex justify-start">
-                                <div className="bg-white border border-gray-100 p-3.5 rounded-2xl rounded-tl-none flex gap-1">
-                                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></div>
-                                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce delay-75"></div>
-                                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce delay-150"></div>
+                                <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none flex gap-1.5 shadow-sm">
+                                    <div className="w-1.5 h-1.5 bg-primary-400 rounded-full animate-bounce"></div>
+                                    <div className="w-1.5 h-1.5 bg-primary-400 rounded-full animate-bounce delay-100"></div>
+                                    <div className="w-1.5 h-1.5 bg-primary-400 rounded-full animate-bounce delay-200"></div>
                                 </div>
                             </div>
                         )}
@@ -207,18 +321,19 @@ const Chatbot = () => {
                     </div>
 
                     {/* Input Area */}
-                    <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-100 flex gap-2">
+                    <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-100 flex gap-2 shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
                         <input
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="Describe your symptoms..."
-                            className="flex-1 bg-gray-50 border-none focus:ring-2 focus:ring-primary-500 rounded-xl px-4 py-3 text-sm transition-all"
+                            placeholder={bookingState ? "Finish booking above..." : "Type your symptoms..."}
+                            disabled={bookingState}
+                            className="flex-1 bg-gray-50 border-none focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-3.5 text-sm transition-all placeholder:text-gray-400"
                         />
                         <button
                             type="submit"
-                            disabled={!input.trim() || loading}
-                            className="bg-primary-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-primary-700 disabled:bg-gray-200 transition-all shadow-md active:scale-95"
+                            disabled={!input.trim() || loading || bookingState}
+                            className="bg-primary-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-primary-700 disabled:bg-gray-100 disabled:text-gray-300 transition-all shadow-md active:scale-95"
                         >
                             <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />

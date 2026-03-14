@@ -43,6 +43,6 @@ export const updateAppointment = (id, data) => API.put(`/appointments/${id}`, da
 export const deleteAppointment = (id) => API.delete(`/appointments/${id}`);
 
 // Chatbot
-export const getChatbotSuggestion = (message) => API.post('/chatbot/suggest-doctor', { message });
+export const getChatbotSuggestion = (message, age, gender) => API.post('/chatbot/suggest-doctor', { message, age, gender });
 
 export default API;
