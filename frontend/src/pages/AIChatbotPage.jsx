@@ -9,7 +9,7 @@ const AIChatbotPage = () => {
     const chatEndRef = useRef(null);
     
     const [messages, setMessages] = useState([
-        { role: 'bot', text: 'Hello! I am your MediBook AI assistant. Please describe your health problem or symptoms in natural language (e.g. "I have chest pain" or "I am feeling stressed").' }
+        { role: 'bot', text: 'Hello! I am your MediBook AI assistant. How can I help you today? Please describe your symptoms (e.g. "I have chest pain").' }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -203,15 +203,7 @@ const AIChatbotPage = () => {
 
     return (
         <DashboardLayout>
-            <div className="max-w-4xl mx-auto h-[82vh] flex flex-col">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-black text-gray-800 flex items-center gap-3">
-                        <span className="bg-gradient-to-br from-primary-500 to-indigo-600 p-2.5 rounded-2xl text-white shadow-lg">🤖</span> 
-                        MediBook AI Medical Assistant
-                    </h1>
-                    <p className="text-gray-500 text-sm mt-2 font-medium">Safe, quick, and reliable doctor recommendations based on your symptoms.</p>
-                </div>
-
+            <div className="max-w-4xl mx-auto h-[82vh] flex flex-col pt-4">
                 <div className="flex-1 bg-white rounded-[2.5rem] shadow-2xl shadow-primary-500/10 border border-gray-100 flex flex-col overflow-hidden relative">
                     {/* Background Pattern */}
                     <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:20px_20px]"></div>
