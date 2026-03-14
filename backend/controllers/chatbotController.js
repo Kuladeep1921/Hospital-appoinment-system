@@ -1,7 +1,10 @@
-const Doctor = require('../models/Doctor');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Initialize Gemini if key exists
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 /**
- * Symptom to Specialization mapping
+ * Symptom to Specialization mapping (Fallback & reference for AI)
  */
 const symptomMap = [
     {
@@ -64,6 +67,53 @@ const suggestDoctor = async (req, res) => {
             return res.status(400).json({ message: 'Please describe your symptoms' });
         }
 
+        // Use AI if available
+        if (genAI) {
+            try {
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                
+                const prompt = `
+                    You are a Medical Assistant AI for the MediBook Healthcare system.
+                    Analyze the following user symptoms and determine the best medical specialization.
+                    
+                    User Profile:
+                    - Age: ${age || 'Not specified'}
+                    - Gender: ${gender || 'Not specified'}
+                    - Symptoms: "${message}"
+
+                    Available Specializations: ${symptomMap.map(s => s.specialization).join(', ')}
+
+                    Strict Rules:
+                    1. Recommending a Pediatrician for any user age 14 or below with general symptoms.
+                    2. Recommending a Gynecologist for female users with pregnancy or reproductive issues.
+                    3. If the specialization is not in the list, choose 'General Physician'.
+                    
+                    Respond ONLY in the following JSON format:
+                    {
+                        "specialization": "The exact name from the list",
+                        "message": "A brief, 1-sentence supportive explanation for the user."
+                    }
+                `;
+
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const text = response.text();
+                
+                // Clean the response (sometimes AI wraps in ```json ... ```)
+                const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const aiResult = JSON.parse(jsonStr);
+
+                return res.json({
+                    specialization: aiResult.specialization,
+                    message: aiResult.message
+                });
+            } catch (err) {
+                console.error('Gemini AI failed, falling back to keywords:', err);
+                // Continue to keyword fallback
+            }
+        }
+
+        // --- KEYWORD FALLBACK LOGIC ---
         const input = message.toLowerCase();
         let found = null;
 

@@ -23,6 +23,7 @@ console.log('   NODE_ENV   :', process.env.NODE_ENV    || '(not set)');
 console.log('   PORT       :', process.env.PORT        || '(not set)');
 console.log('   MONGO_URI  :', process.env.MONGO_URI   ? '✅ present' : '❌ MISSING');
 console.log('   JWT_SECRET :', process.env.JWT_SECRET  ? '✅ present' : '❌ MISSING');
+console.log('   GEMINI_KEY :', process.env.GEMINI_API_KEY ? '✅ present' : '❌ MISSING');
 console.log('   FRONTEND_URL:', process.env.FRONTEND_URL || '(not set — using localhost fallback)');
 
 if (!process.env.MONGO_URI) {
