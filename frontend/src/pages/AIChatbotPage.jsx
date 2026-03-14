@@ -203,8 +203,27 @@ const AIChatbotPage = () => {
 
     return (
         <DashboardLayout>
-            <div className="max-w-4xl mx-auto h-[82vh] flex flex-col pt-4">
+            <div className="max-w-4xl mx-auto h-[82vh] flex flex-col pt-6">
                 <div className="flex-1 bg-white rounded-[2.5rem] shadow-2xl shadow-primary-500/10 border border-gray-100 flex flex-col overflow-hidden relative">
+                    {/* Premium Header Inside Container */}
+                    <div className="bg-gradient-to-r from-primary-600 to-indigo-600 p-6 text-white relative z-20">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl backdrop-blur-md shadow-inner">🤖</div>
+                                <div>
+                                    <p className="font-extrabold text-xl leading-tight tracking-tight">Medical AI Assistant</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
+                                        <p className="text-xs text-white/90 font-bold uppercase tracking-widest">Online • Ready to help</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="hidden sm:block">
+                                <div className="text-[11px] bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md font-black uppercase tracking-widest border border-white/10">V2.5 Protocol</div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Background Pattern */}
                     <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:20px_20px]"></div>
 
