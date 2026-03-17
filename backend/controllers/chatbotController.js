@@ -1,7 +1,6 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
-// Initialize Gemini if key exists
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 /**
  * Symptom to Specialization mapping (Fallback & reference for AI)
@@ -67,49 +66,32 @@ const suggestDoctor = async (req, res) => {
             return res.status(400).json({ message: 'Please describe your symptoms' });
         }
 
-        // Use AI if available
-        if (genAI) {
+        // Use Groq AI if available
+        if (groq) {
             try {
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                
-                const prompt = `
-                    You are a Medical Assistant AI for the MediBook Healthcare system.
-                    Analyze the following user symptoms and determine the best medical specialization.
-                    
-                    User Profile:
-                    - Age: ${age || 'Not specified'}
-                    - Gender: ${gender || 'Not specified'}
-                    - Symptoms: "${message}"
+                const completion = await groq.chat.completions.create({
+                    model: 'llama-3.1-8b-instant',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are a Medical Assistant AI for the MediBook Healthcare system. Analyze user symptoms and determine the best medical specialization. Available Specializations: ${symptomMap.map(s => s.specialization).join(', ')}. Rules: 1. Recommend Pediatrician for age 14 or below. 2. Recommend Gynecologist for female users with pregnancy/reproductive issues. 3. Default to General Physician if unsure. Respond ONLY in JSON: {"specialization": "exact name from list", "message": "1-sentence supportive explanation"}`
+                        },
+                        {
+                            role: 'user',
+                            content: `Age: ${age || 'Not specified'}, Gender: ${gender || 'Not specified'}, Symptoms: "${message}"`
+                        }
+                    ],
+                    temperature: 0.3,
+                    response_format: { type: 'json_object' }
+                });
 
-                    Available Specializations: ${symptomMap.map(s => s.specialization).join(', ')}
-
-                    Strict Rules:
-                    1. Recommending a Pediatrician for any user age 14 or below with general symptoms.
-                    2. Recommending a Gynecologist for female users with pregnancy or reproductive issues.
-                    3. If the specialization is not in the list, choose 'General Physician'.
-                    
-                    Respond ONLY in the following JSON format:
-                    {
-                        "specialization": "The exact name from the list",
-                        "message": "A brief, 1-sentence supportive explanation for the user."
-                    }
-                `;
-
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const text = response.text();
-                
-                // Clean the response (sometimes AI wraps in ```json ... ```)
-                const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                const aiResult = JSON.parse(jsonStr);
-
+                const aiResult = JSON.parse(completion.choices[0].message.content);
                 return res.json({
                     specialization: aiResult.specialization,
                     message: aiResult.message
                 });
             } catch (err) {
-                console.error('Gemini AI failed, falling back to keywords:', err);
-                // Continue to keyword fallback
+                console.error('Groq AI failed, falling back to keywords:', err.message);
             }
         }
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChatbotSuggestion, fetchDoctors, fetchHospitals, bookAppointment } from '../services/api';
+import { getChatbotSuggestion, fetchDoctors, fetchLiveHospitals, bookAppointment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const Chatbot = () => {
@@ -41,12 +41,11 @@ const Chatbot = () => {
         return ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM", "03:00 PM", "04:00 PM"];
     };
 
-    const handleLocationFailed = (data) => {
+    const handleLocationFailed = () => {
         setMessages(prev => [
             ...prev,
-            { text: "Location access denied. I'll search for doctors in your registered district.", sender: 'bot' }
+            { text: "Location access denied. Please allow location access and try again.", sender: 'bot' }
         ]);
-        // Fallback or request manual district? For now just try to use user info if available
         setLoading(false);
     };
 
@@ -76,27 +75,29 @@ const Chatbot = () => {
                             let detectedCity = 'Hyderabad'; // Default fallback
 
                             if (geoData.address) {
-                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Hyderabad';
+                                const raw = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Hyderabad';
+                                detectedCity = raw.split(',')[0].replace(/ District/gi, '').trim();
+                                const area = geoData.address.suburb || geoData.address.neighbourhood || geoData.address.village || geoData.address.town || geoData.address.road || '';
+                                const displayLocation = area ? `${area}, ${detectedCity}` : detectedCity;
+                                setMessages(prev => [...prev, { text: `📍 Location detected: ${displayLocation}. Finding best ${data.specialization}s for you...`, sender: 'bot' }]);
+                            } else {
+                                setMessages(prev => [...prev, { text: `📍 Location detected: ${detectedCity}. Finding best ${data.specialization}s for you...`, sender: 'bot' }]);
                             }
                             
-                            detectedCity = detectedCity.replace(/ District/gi, '').trim();
-                            
-                            setMessages(prev => [...prev, { text: `📍 Location detected: ${detectedCity}. Finding best ${data.specialization}s for you...`, sender: 'bot' }]);
-                            
-                            // 2. Fetch Doctors & Hospitals from Database
-                            const [docsRes, hospRes] = await Promise.all([
+                            // Fetch doctors and hospitals independently so one failure doesn't block the other
+                            const [docsRes, hospRes] = await Promise.allSettled([
                                 fetchDoctors({ district: detectedCity, specialization: data.specialization }),
-                                fetchHospitals(detectedCity)
+                                fetchLiveHospitals(detectedCity)
                             ]);
                             
-                            const doctors = docsRes.data || [];
-                            const dbHospitals = hospRes.data || [];
+                            const doctors = docsRes.status === 'fulfilled' ? (docsRes.value.data || []) : [];
+                            const liveHospitals = hospRes.status === 'fulfilled' ? (hospRes.value.data || []) : [];
                             
                             let botText = `Based on your symptoms and profile, I found some ${data.specialization}s in your area.`;
                             
-                            if (dbHospitals.length > 0) {
-                                const hospitalList = dbHospitals.map(h => h.name).slice(0, 3).join(", ");
-                                botText += `\n\n🏥 Nearby Hospitals found: ${hospitalList}.`;
+                            if (liveHospitals.length > 0) {
+                                const hospitalList = liveHospitals.map(h => h.name).slice(0, 3).join(", ");
+                                botText += `\n\n🏥 Nearby Real Hospitals: ${hospitalList}.`;
                             }
 
                             if (doctors.length === 0) {
@@ -112,10 +113,12 @@ const Chatbot = () => {
                             setLoading(false);
                             
                         } catch (err) {
-                            handleLocationFailed(data);
+                            console.error('Chatbot fetch error:', err);
+                            setMessages(prev => [...prev, { text: "Sorry, I had trouble fetching doctors. Please try again.", sender: 'bot' }]);
+                            setLoading(false);
                         }
-                    }, (err) => {
-                        handleLocationFailed(data);
+                    }, () => {
+                        handleLocationFailed();
                     }, { timeout: 10000 });
                 } else {
                     handleLocationFailed(data);

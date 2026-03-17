@@ -34,14 +34,12 @@ const DashboardPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [tip, setTip] = useState("");
 
-    if (user?.role === 'admin') {
-        return <AdminDashboardPage />;
-    }
-
     useEffect(() => {
+        if (!user || user.role === 'admin') return;
+        setLoading(true);
         const load = async () => {
             try {
                 const { data } = await getUserAppointments();
@@ -54,13 +52,15 @@ const DashboardPage = () => {
         };
         load();
         setTip(HEALTH_TIPS[Math.floor(Math.random() * HEALTH_TIPS.length)]);
-    }, []);
+    }, [user]);
 
     const pending = appointments.filter((a) => a.status === 'Pending').length;
     const approved = appointments.filter((a) => a.status === 'Approved').length;
     const rejected = appointments.filter((a) => a.status === 'Rejected').length;
 
     const recent = appointments.slice(0, 5);
+
+    if (user?.role === 'admin') return <AdminDashboardPage />;
 
     return (
         <DashboardLayout>

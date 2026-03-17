@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchDoctors, bookAppointment, fetchDistricts, fetchHospitals } from '../services/api';
+import { fetchDoctors, bookAppointment, fetchDistricts, fetchLiveHospitals } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import Spinner from '../components/Spinner';
 
@@ -58,7 +58,7 @@ const BookAppointmentPage = () => {
                     // Load secondary data incrementally based on what we have
                     if (preSelectedDistrict) {
                         setLoadingHospitals(true);
-                        const hRes = await fetchHospitals(preSelectedDistrict);
+                        const hRes = await fetchLiveHospitals(preSelectedDistrict);
                         setHospitals(hRes.data);
                         setLoadingHospitals(false);
                     }
@@ -122,29 +122,7 @@ const BookAppointmentPage = () => {
 
         setLoadingHospitals(true);
         try {
-            // Start concurrent fetch: Database + Live Overpass scan if we have GPS
-            const fetchPromises = [fetchHospitals(districtName)];
-            
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(async (position) => {
-                    const { latitude, longitude } = position.coords;
-                    try {
-                        const res = await fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${latitude},${longitude})[amenity=hospital];out;`);
-                        const overpassData = await res.json();
-                        const live = overpassData.elements
-                            .filter(e => e.tags.name)
-                            .map(e => ({
-                                _id: `live-${e.id}`,
-                                name: `🌐 ${e.tags.name} (Live GPS Match)`,
-                                isLive: true
-                            }));
-                        
-                        setHospitals(current => [...current, ...live]);
-                    } catch (err) { console.warn("Live scan failed", err); }
-                });
-            }
-
-            const { data } = await fetchHospitals(districtName);
+            const { data } = await fetchLiveHospitals(districtName);
             setHospitals(data);
         } catch {
             setError('Failed to load hospitals for this district.');
@@ -157,15 +135,7 @@ const BookAppointmentPage = () => {
     const handleHospitalChange = async (e) => {
         const selectedId = e.target.value;
         
-        // Handle Live Hospital Selection
-        if (selectedId.startsWith('live-')) {
-            setForm(prev => ({ ...prev, hospitalId: selectedId, doctorId: '', specialization: '' }));
-            setError('This is a live-detected facility. Currently, we only support online booking for our registered partner hospitals. Please visit this hospital in-person.');
-            setDoctors([]);
-            return;
-        }
-
-        setError(''); // Clear previous error
+        setError('');
         setForm(prev => ({ ...prev, hospitalId: selectedId, doctorId: '', specialization: '' }));
         setDoctors([]);
 
