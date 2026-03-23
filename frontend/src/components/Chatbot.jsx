@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChatbotSuggestion, fetchDoctors, fetchLiveHospitals, bookAppointment } from '../services/api';
+import { getChatbotSuggestion, fetchDoctors, fetchHospitals, bookAppointment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const Chatbot = () => {
@@ -93,7 +93,7 @@ const Chatbot = () => {
                             // Fetch doctors and hospitals independently so one failure doesn't block the other
                             const [docsRes, hospRes] = await Promise.allSettled([
                                 fetchDoctors({ district: detectedCity, specialization: data.specialization }),
-                                fetchLiveHospitals(detectedCity)
+                                fetchHospitals(detectedCity)
                             ]);
                             
                             const doctors = docsRes.status === 'fulfilled' ? (docsRes.value.data || []) : [];
