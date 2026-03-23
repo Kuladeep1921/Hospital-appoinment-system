@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchDoctors, bookAppointment } from '../services/api';
+import { fetchDistricts, fetchHospitals, fetchDoctors, bookAppointment } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import Spinner from '../components/Spinner';
 
@@ -50,6 +50,26 @@ const AdminWalkinBookingPage = () => {
 
         setLoadingHospitals(true);
         try {
+            // Concurrent fetch: Database + Live Overpass scan if we have GPS
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        const res = await fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${latitude},${longitude})[amenity=hospital];out;`);
+                        const overpassData = await res.json();
+                        const live = overpassData.elements
+                            .filter(e => e.tags.name)
+                            .map(e => ({
+                                _id: `live-${e.id}`,
+                                name: `🌐 ${e.tags.name} (Live GPS Match)`,
+                                isLive: true
+                            }));
+                        
+                        setHospitals(current => [...current, ...live]);
+                    } catch (err) { console.warn("Live scan failed", err); }
+                });
+            }
+
             const { data } = await fetchHospitals(districtName);
             setHospitals(data);
         } catch {
@@ -60,15 +80,25 @@ const AdminWalkinBookingPage = () => {
     };
 
     const handleHospitalChange = async (e) => {
-        const hospitalId = e.target.value;
-        setForm(prev => ({ ...prev, hospitalId, doctorId: '' }));
+        const selectedId = e.target.value;
+        
+        // Handle Live Hospital Selection for Admin (Informational/Warning)
+        if (selectedId.startsWith('live-')) {
+            setForm(prev => ({ ...prev, hospitalId: selectedId, doctorId: '' }));
+            setError('This is a live-detected facility. Currently, we only support official registerations for integrated partner hospitals.');
+            setDoctors([]);
+            return;
+        }
+
+        setError(''); // Clear previous error
+        setForm(prev => ({ ...prev, hospitalId: selectedId, doctorId: '' }));
         setDoctors([]);
 
-        if (!hospitalId) return;
+        if (!selectedId) return;
 
         setLoadingDoctors(true);
         try {
-            const { data } = await fetchDoctors({ hospitalId });
+            const { data } = await fetchDoctors({ hospitalId: selectedId });
             setDoctors(data);
         } catch {
             setError('Failed to load doctors');
