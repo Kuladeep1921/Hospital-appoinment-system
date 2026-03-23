@@ -39,7 +39,7 @@ if (!process.env.JWT_SECRET) {
 // ── Load routes one-by-one so we see exactly which one crashes ───────────────
 console.log('📦 Loading routes...');
 let authRoutes, doctorRoutes, appointmentRoutes, chatbotRoutes,
-    districtRoutes, hospitalRoutes, userRoutes, placesRoutes;
+    districtRoutes, hospitalRoutes, userRoutes, placesRoutes, notificationRoutes;
 
 try { authRoutes        = require('./routes/authRoutes');        console.log('   ✅ authRoutes'); }
 catch (e) { console.error('   ❌ authRoutes failed:', e.message, e.stack); process.exit(1); }
@@ -64,6 +64,9 @@ catch (e) { console.error('   ❌ userRoutes failed:', e.message, e.stack); proc
 
 try { placesRoutes      = require('./routes/placesRoutes');      console.log('   ✅ placesRoutes'); }
 catch (e) { console.error('   ❌ placesRoutes failed:', e.message, e.stack); process.exit(1); }
+
+try { notificationRoutes = require('./routes/notificationRoutes'); console.log('   ✅ notificationRoutes'); }
+catch (e) { console.error('   ❌ notificationRoutes failed:', e.message, e.stack); process.exit(1); }
 
 console.log('📦 All routes loaded OK');
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,7 +96,8 @@ app.use('/api/chatbot',      chatbotRoutes);
 app.use('/api/districts',    districtRoutes);
 app.use('/api/hospitals',    hospitalRoutes);
 app.use('/api/users',        userRoutes);
-app.use('/api/places',       placesRoutes);
+app.use('/api/places',         placesRoutes);
+app.use('/api/notifications',  notificationRoutes);
 
 // Health check
 app.get('/', (req, res) => {

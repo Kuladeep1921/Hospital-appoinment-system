@@ -1,4 +1,6 @@
 const Appointment = require('../models/Appointment');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 
 // @desc   Book an appointment
 // @route  POST /api/appointments
@@ -31,6 +33,18 @@ const bookAppointment = async (req, res) => {
         const populated = await Appointment.findById(appointment._id)
             .populate('doctorId', 'name specialization')
             .populate('userId', 'name email phone');
+
+        // Notify all admins about new appointment
+        try {
+            const admins = await User.find({ role: 'admin' }, '_id');
+            const patientLabel = patientName || populated.userId?.name || 'A patient';
+            await Notification.insertMany(admins.map(a => ({
+                userId: a._id,
+                type: 'new_appointment',
+                appointmentId: appointment._id,
+                message: `New appointment booked by ${patientLabel} with Dr. ${populated.doctorId?.name}.`,
+            })));
+        } catch (_) {}
 
         res.status(201).json(populated);
     } catch (error) {
@@ -94,6 +108,18 @@ const updateAppointmentStatus = async (req, res) => {
         if (!appointment) {
             return res.status(404).json({ message: 'Appointment not found' });
         }
+
+        // Notify the patient about status change
+        try {
+            if (appointment.userId) {
+                await Notification.create({
+                    userId: appointment.userId,
+                    type: 'appointment_status',
+                    appointmentId: appointment._id,
+                    message: `Your appointment with Dr. ${appointment.doctorId?.name} has been ${status.toLowerCase()}.`,
+                });
+            }
+        } catch (_) {}
 
         res.json(appointment);
     } catch (error) {

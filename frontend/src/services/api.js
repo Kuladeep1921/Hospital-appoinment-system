@@ -45,6 +45,11 @@ export const deleteAppointment = (id) => API.delete(`/appointments/${id}`);
 // Live Places (Nominatim + Overpass)
 export const fetchLiveHospitals = (district) => API.get(`/places/hospitals?district=${encodeURIComponent(district)}`);
 
+// Notifications
+export const fetchNotifications = () => API.get('/notifications');
+export const fetchUnreadCount = () => API.get('/notifications/unread-count');
+export const markNotificationsRead = () => API.patch('/notifications/mark-read');
+
 // Chatbot
 export const getChatbotSuggestion = (message, age, gender) => API.post('/chatbot/suggest-doctor', { message, age, gender });
 
