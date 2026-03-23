@@ -59,8 +59,14 @@ const Chatbot = () => {
         setLoading(true);
 
         try {
-            // Include age and gender in suggestion request
             const { data } = await getChatbotSuggestion(userMsg.text, user?.age, user?.gender);
+
+            // Handle greeting response — no location/doctor search needed
+            if (data.greeting) {
+                setMessages(prev => [...prev, { text: data.message, sender: 'bot' }]);
+                setLoading(false);
+                return;
+            }
 
             setTimeout(() => {
                 setMessages(prev => [...prev, { text: "Detecting your location to find nearby hospitals and doctors...", sender: 'bot' }]);
@@ -97,7 +103,7 @@ const Chatbot = () => {
                             
                             if (liveHospitals.length > 0) {
                                 const hospitalList = liveHospitals.map(h => h.name).slice(0, 3).join(", ");
-                                botText += `\n\n🏥 Nearby Real Hospitals: ${hospitalList}.`;
+                                botText += `\n\n🏥 Nearby Hospitals: ${hospitalList}.`;
                             }
 
                             if (doctors.length === 0) {

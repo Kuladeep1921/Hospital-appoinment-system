@@ -2,100 +2,74 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getChatbotSuggestion, fetchDoctors, fetchDistricts, fetchHospitals } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
-import Spinner from '../components/Spinner';
 
 const AIChatbotPage = () => {
     const navigate = useNavigate();
     const chatEndRef = useRef(null);
-    
+
     const [messages, setMessages] = useState([
         { role: 'bot', text: 'Hello! I am your MediBook AI assistant. How can I help you today? Please describe your symptoms (e.g. "I have chest pain").' }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [districts, setDistricts] = useState([]);
-    
-    // Workflow state
-    const [step, setStep] = useState('symptoms'); // symptoms -> district -> results
+
+    const [step, setStep] = useState('symptoms');
     const [currentSymptoms, setCurrentSymptoms] = useState('');
     const [matchedSpecialization, setMatchedSpecialization] = useState('');
     const [analysisMessage, setAnalysisMessage] = useState('');
 
     useEffect(() => {
-        const loadDistricts = async () => {
-            try {
-                const { data } = await fetchDistricts();
-                setDistricts(data);
-            } catch (err) {
-                console.error('Failed to load districts', err);
-            }
-        };
-        loadDistricts();
+        fetchDistricts().then(({ data }) => setDistricts(data)).catch(() => {});
     }, []);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, loading]);
 
-    const fetchAndShowDoctors = async (districtName, specialization, analysisMsg, lat = null, lon = null) => {
+    const fetchAndShowDoctors = async (districtName, specialization, analysisMsg) => {
         setLoading(true);
         try {
-            // Concurrent fetch of database doctors and live OSM hospitals
-            const fetchPromises = [fetchDoctors({ district: districtName, specialization })];
-            
-            // If we have coordinates, pull real-time live map data
-            if (lat && lon) {
-                fetchPromises.push(
-                    fetch(`https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${lat},${lon})[amenity=hospital];out;`).then(r => r.json())
-                );
-            }
+            const [docsRes, hospRes] = await Promise.allSettled([
+                fetchDoctors({ district: districtName, specialization }),
+                fetchHospitals(districtName)
+            ]);
 
-            const results = await Promise.all(fetchPromises);
-            const data = results[0].data || [];
-            const liveHospData = results[1]?.elements || [];
-            const liveHospitals = liveHospData
-                .map(e => e.tags.name)
-                .filter(name => name && name.length > 2)
-                .slice(0, 5);
-            
+            const data = docsRes.status === 'fulfilled' ? (docsRes.value.data || []) : [];
+            const hospitals = hospRes.status === 'fulfilled' ? (hospRes.value.data || []) : [];
+            const hospitalNames = hospitals.slice(0, 5).map(h => h.name);
+
             setTimeout(() => {
-                setMessages(prev => [...prev, { 
-                    role: 'bot', 
+                setMessages(prev => [...prev, {
+                    role: 'bot',
                     text: `Based on your symptoms, I detected that you might need a ${specialization}. ${analysisMsg}`,
                 }]);
 
-                if (data.length === 0 && liveHospitals.length === 0) {
-                    setMessages(prev => [...prev, { 
-                        role: 'bot', 
-                        text: `I couldn't find any registered ${specialization}s or live hospitals near you in ${districtName} right now.` 
+                if (data.length === 0 && hospitalNames.length === 0) {
+                    setMessages(prev => [...prev, {
+                        role: 'bot',
+                        text: `I couldn't find any registered ${specialization}s or hospitals in ${districtName} right now.`
                     }]);
                 } else {
                     let listText = `Search Results for ${districtName}:`;
-                    
-                    if (liveHospitals.length > 0) {
-                        const topHosp = Array.from(new Set(liveHospitals)).join(", ");
-                        listText += `\n\n🏥 Real-Time Nearby Hospitals (Live): ${topHosp}.`;
+                    if (hospitalNames.length > 0) {
+                        listText += `\n\n🏥 Nearby Hospitals: ${hospitalNames.join(', ')}.`;
                     }
-
                     if (data.length > 0) {
                         listText += `\n\n👨‍⚕️ Registered Doctors Available for Booking:`;
-                    } else if (liveHospitals.length > 0) {
-                        listText += `\n\n(No specific ${specialization}s are registered in our booking system for this area yet, but you can visit the live hospitals listed above.)`;
                     }
-
-                    setMessages(prev => [...prev, { 
-                        role: 'bot', 
+                    setMessages(prev => [...prev, {
+                        role: 'bot',
                         text: listText,
                         type: 'doctor-list',
-                        doctors: data,
+                        doctors: data.slice(0, 5),
                         selectedDistrict: districtName
                     }]);
                 }
                 setStep('symptoms');
                 setLoading(false);
             }, 1000);
-
-        } catch (err) {
+        } catch {
             setMessages(prev => [...prev, { role: 'bot', text: 'Failed to fetch doctors. Please try again.' }]);
             setLoading(false);
             setStep('symptoms');
@@ -103,18 +77,13 @@ const AIChatbotPage = () => {
     };
 
     const handleLocationFailed = () => {
-        setMessages(prev => [...prev, { 
-            role: 'bot', 
+        setMessages(prev => [...prev, {
+            role: 'bot',
             text: 'Location access denied or failed. Please select your district manually from the options below.',
             type: 'district-select'
         }]);
         setStep('district');
         setLoading(false);
-    };
-
-    const handleDistrictDetected = (districtName, specialization, analysisMsg, locationString = districtName, lat = null, lon = null) => {
-        setMessages(prev => [...prev, { role: 'bot', text: `📍 Location detected: ${locationString}` }]);
-        fetchAndShowDoctors(districtName, specialization, analysisMsg, lat, lon);
     };
 
     const handleSendSymptoms = async (e) => {
@@ -128,76 +97,77 @@ const AIChatbotPage = () => {
         setLoading(true);
 
         try {
-            // First analyze symptoms to get specialization (Internal analysis)
             const { data } = await getChatbotSuggestion(userMsg);
+
+            // Handle greeting — no location/doctor search needed
+            if (data.greeting) {
+                setMessages(prev => [...prev, { role: 'bot', text: data.message }]);
+                setLoading(false);
+                return;
+            }
+
             setMatchedSpecialization(data.specialization);
             setAnalysisMessage(data.message);
-            
+
             setTimeout(() => {
-                setMessages(prev => [...prev, { 
-                    role: 'bot', 
+                setMessages(prev => [...prev, {
+                    role: 'bot',
                     text: 'To suggest nearby doctors and hospitals, please allow location access.',
                 }]);
-                
+
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         try {
                             const { latitude, longitude } = position.coords;
-                            
                             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=en`);
                             const geoData = await res.json();
-                            
+
                             let detectedArea = '';
                             let detectedCity = '';
 
                             if (geoData.address) {
-                                // Extract very granular area details
-                                detectedArea = geoData.address.neighbourhood || geoData.address.suburb || geoData.address.residential || geoData.address.village || '';
-                                
-                                // Extract higher order city/district boundary
-                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Unknown Location';
+                                detectedArea = geoData.address.neighbourhood || geoData.address.suburb || geoData.address.village || '';
+                                detectedCity = geoData.address.state_district || geoData.address.city || geoData.address.county || geoData.address.town || 'Unknown';
                             }
-                            
-                            // Just clean up "District" word if it appears from the boundary
-                            detectedCity = detectedCity.replace(/ District/gi, '').trim();
+
+                            detectedCity = detectedCity.split(',')[0].replace(/ District/gi, '').trim();
                             detectedArea = detectedArea.replace(/ District/gi, '').trim();
-                            
-                            let locationString = (detectedArea && detectedArea.toLowerCase() !== detectedCity.toLowerCase()) 
-                                ? `${detectedArea}, ${detectedCity}` 
+
+                            const locationString = (detectedArea && detectedArea.toLowerCase() !== detectedCity.toLowerCase())
+                                ? `${detectedArea}, ${detectedCity}`
                                 : detectedCity;
-                            
-                            handleDistrictDetected(detectedCity, data.specialization, data.message, locationString, latitude, longitude);
-                        } catch (err) {
+
+                            setMessages(prev => [...prev, { role: 'bot', text: `📍 Location detected: ${locationString}` }]);
+                            fetchAndShowDoctors(detectedCity, data.specialization, data.message);
+                        } catch {
                             handleLocationFailed();
                         }
-                    }, (err) => {
-                        handleLocationFailed();
-                    }, { timeout: 10000 });
+                    }, () => handleLocationFailed(), { timeout: 10000 });
                 } else {
                     handleLocationFailed();
                 }
             }, 800);
 
-        } catch (error) {
+        } catch {
             setMessages(prev => [...prev, { role: 'bot', text: 'I encountered an error analyzing your symptoms. Please try again.' }]);
             setLoading(false);
         }
     };
 
-    const handleDistrictSelect = async (districtName) => {
+    const handleDistrictSelect = (districtName) => {
         setMessages(prev => [...prev, { role: 'user', text: `My district is ${districtName}` }]);
         fetchAndShowDoctors(districtName, matchedSpecialization, analysisMessage);
     };
 
     const handleBookNow = (doctor) => {
-        navigate('/dashboard/book', { 
-            state: { 
+        navigate('/dashboard/book', {
+            state: {
                 preSelectedDoctorId: doctor._id,
                 preSelectedHospitalId: doctor.hospitalId?._id || doctor.hospitalId,
                 preSelectedDistrict: doctor.district,
                 preSelectedSpecialization: doctor.specialization,
                 preFilledProblem: currentSymptoms
-            } 
+            }
         });
     };
 
@@ -205,7 +175,7 @@ const AIChatbotPage = () => {
         <DashboardLayout>
             <div className="max-w-4xl mx-auto h-[82vh] flex flex-col pt-6">
                 <div className="flex-1 bg-white rounded-[2.5rem] shadow-2xl shadow-primary-500/10 border border-gray-100 flex flex-col overflow-hidden relative">
-                    {/* Premium Header Inside Container */}
+                    {/* Header */}
                     <div className="bg-gradient-to-r from-primary-600 to-indigo-600 p-6 text-white relative z-20">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -224,7 +194,6 @@ const AIChatbotPage = () => {
                         </div>
                     </div>
 
-                    {/* Background Pattern */}
                     <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:20px_20px]"></div>
 
                     {/* Chat Area */}
@@ -232,13 +201,13 @@ const AIChatbotPage = () => {
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-3 duration-500`}>
                                 <div className={`max-w-[85%] ${
-                                    msg.role === 'user' 
-                                        ? 'bg-gradient-to-br from-primary-600 to-indigo-700 text-white rounded-3xl rounded-tr-none shadow-blue-200' 
+                                    msg.role === 'user'
+                                        ? 'bg-gradient-to-br from-primary-600 to-indigo-700 text-white rounded-3xl rounded-tr-none shadow-blue-200'
                                         : 'bg-indigo-50/50 text-gray-800 rounded-3xl rounded-tl-none border border-indigo-100/50'
                                 } p-5 shadow-sm`}>
                                     {msg.text && <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
-                                    
-                                    {/* District Select UI */}
+
+                                    {/* District Select */}
                                     {msg.type === 'district-select' && (
                                         <div className="mt-5 space-y-3">
                                             <p className="text-[10px] uppercase tracking-widest font-bold text-indigo-400 mb-1">Select your location</p>
@@ -256,12 +225,10 @@ const AIChatbotPage = () => {
                                         </div>
                                     )}
 
-                                    {/* Doctor List UI */}
+                                    {/* Doctor List */}
                                     {msg.type === 'doctor-list' && (
                                         <div className="mt-6 space-y-5">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="text-xs font-black uppercase tracking-widest text-indigo-400">Recommended Doctors in {msg.selectedDistrict}</p>
-                                            </div>
+                                            <p className="text-xs font-black uppercase tracking-widest text-indigo-400">Recommended Doctors in {msg.selectedDistrict}</p>
                                             {msg.doctors.map(doc => (
                                                 <div key={doc._id} className="bg-white p-5 rounded-3xl border border-indigo-50 shadow-sm flex flex-col gap-4 hover:shadow-xl hover:border-primary-200 transition-all duration-300 group">
                                                     <div className="flex items-start justify-between">
@@ -271,7 +238,7 @@ const AIChatbotPage = () => {
                                                                 <h3 className="font-extrabold text-gray-800 text-lg group-hover:text-primary-600 transition-colors">{doc.name}</h3>
                                                                 <p className="text-xs font-bold text-primary-500 uppercase tracking-tighter">{doc.specialization}</p>
                                                                 <p className="text-sm text-gray-500 font-medium mt-1.5 flex items-center gap-1.5">
-                                                                    <span className="text-indigo-400">🏥</span> {doc.hospitalId?.name || 'Hospital Name'}
+                                                                    <span className="text-indigo-400">🏥</span> {doc.hospitalId?.name || 'Hospital'}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -323,7 +290,7 @@ const AIChatbotPage = () => {
                         <div ref={chatEndRef} />
                     </div>
 
-                    {/* Input Area */}
+                    {/* Input */}
                     <div className="p-6 border-t border-gray-100 bg-white/80 backdrop-blur-xl relative z-10">
                         <form onSubmit={handleSendSymptoms} className="relative max-w-3xl mx-auto">
                             <input

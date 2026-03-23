@@ -48,7 +48,6 @@ const PatientHospitalsPage = () => {
             setExpandedHospital(null);
             return;
         }
-
         setExpandedHospital(hospitalId);
         if (!hospitalDoctors[hospitalId]) {
             try {

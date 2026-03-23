@@ -1,4 +1,5 @@
 const Doctor = require('../models/Doctor');
+const mongoose = require('mongoose');
 
 // @desc   Get all doctors
 // @route  GET /api/doctors
@@ -9,6 +10,9 @@ const getDoctors = async (req, res) => {
         let query = { available: true };
         
         if (hospitalId) {
+            if (!mongoose.Types.ObjectId.isValid(hospitalId)) {
+                return res.status(400).json({ message: 'Invalid hospitalId' });
+            }
             query.hospitalId = hospitalId;
         }
         if (district) {

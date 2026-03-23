@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getUserAppointments, deleteAppointment, updateAppointment, fetchDoctors } from '../services/api';
+import { getUserAppointments, deleteAppointment, updateAppointment } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import StatusBadge from '../components/StatusBadge';
 import Spinner from '../components/Spinner';
@@ -11,18 +11,13 @@ const MyAppointmentsPage = () => {
     const [filter, setFilter] = useState('All');
     const [editingAppt, setEditingAppt] = useState(null);
     const [editForm, setEditForm] = useState({ doctorId: '', date: '', timeSlot: '', problem: '' });
-    const [doctors, setDoctors] = useState([]);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         const load = async () => {
             try {
-                const [apptRes, docRes] = await Promise.all([
-                    getUserAppointments(),
-                    fetchDoctors()
-                ]);
-                setAppointments(apptRes.data);
-                setDoctors(docRes.data);
+                const { data } = await getUserAppointments();
+                setAppointments(data);
             } catch {
                 setAppointments([]);
             } finally {
@@ -249,17 +244,11 @@ const MyAppointmentsPage = () => {
                                 <form onSubmit={handleEditSubmit} className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
-                                        <select
-                                            value={editForm.doctorId}
-                                            onChange={(e) => setEditForm({ ...editForm, doctorId: e.target.value })}
-                                            className="input-field"
-                                            required
-                                        >
-                                            <option value="">-- Change Doctor --</option>
-                                            {doctors.map(doc => (
-                                                <option key={doc._id} value={doc._id}>{doc.name} — {doc.specialization}</option>
-                                            ))}
-                                        </select>
+                                        <input
+                                            className="input-field bg-gray-50"
+                                            value={editingAppt?.doctorId?.name || ''}
+                                            disabled
+                                        />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>

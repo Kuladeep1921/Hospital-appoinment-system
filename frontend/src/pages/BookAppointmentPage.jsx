@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchDoctors, bookAppointment, fetchDistricts, fetchLiveHospitals } from '../services/api';
+import { fetchDoctors, bookAppointment, fetchDistricts, fetchHospitals } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import Spinner from '../components/Spinner';
 
@@ -58,7 +58,7 @@ const BookAppointmentPage = () => {
                     // Load secondary data incrementally based on what we have
                     if (preSelectedDistrict) {
                         setLoadingHospitals(true);
-                        const hRes = await fetchLiveHospitals(preSelectedDistrict);
+                        const hRes = await fetchHospitals(preSelectedDistrict);
                         setHospitals(hRes.data);
                         setLoadingHospitals(false);
                     }
@@ -122,7 +122,7 @@ const BookAppointmentPage = () => {
 
         setLoadingHospitals(true);
         try {
-            const { data } = await fetchLiveHospitals(districtName);
+            const { data } = await fetchHospitals(districtName);
             setHospitals(data);
         } catch {
             setError('Failed to load hospitals for this district.');
